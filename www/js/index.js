@@ -1,6 +1,44 @@
 var selectedProjectId = -1;
 var projects = { };
+	
+function validateForm()
+{
 
+	var name    = $( "#name" );
+	var command = $( "#command" );
+	var trigger = $( "#trigger" );
+	
+	var allFields = $( [] ).add( name ).add( command ).add( trigger );
+	var tips = $( ".validateTips" );	
+	
+	function updateTips( t )
+	{
+		tips.text( t ).addClass( "ui-state-highlight" );
+		setTimeout(function() {
+			tips.removeClass( "ui-state-highlight", 1500 );
+		}, 500 );
+	}
+	
+	function checkSet( o, n ) {
+		if ( o.val().length > 0) {
+			return true;
+		}
+		else {
+			o.addClass( "ui-state-error" );
+			updateTips( n + " must be specified" );
+			return false;
+		}
+	}	
+	
+	var valid = true;
+	allFields.removeClass( "ui-state-error" );
+	valid = valid && checkSet( name, "name" );
+	valid = valid && checkSet( command, "command" );
+	
+	return valid;
+	
+}	
+	
 function setSelectedProject(id)
 {
 	
@@ -62,6 +100,7 @@ function createProjectElement(project)
             },
             text: false
 		});			
+	editButton.click(projectEditButtonClick);
 	
 	var deleteButton = projectElement.find(".project_delete_button");
 	deleteButton.button({
@@ -189,14 +228,19 @@ function update()
 	results.load("carson_api.php", { action: 'get_results', projectId: window.selectedProjectId } );
 }
 
+function showErrorMessage(message)
+{
+	$("#error_message_text").html(message);
+	var error = $("#error_message");
+	error.show();
+}
+
 function projectActionCallback(message)
 {
 	updateProjects();
 	if (message.length > 0)
 	{
-		$("#error_message_text").html(message);
-		var error = $("#error_message");
-		error.show();
+		showErrorMessage(message);
 	}
 }
 
@@ -205,6 +249,79 @@ function projectRunButtonClick(event)
 	var id = $(event.target).parents('li').find('input').val();
 	jQuery.post("carson_api.php", { action: 'run_project', projectId: id }, projectActionCallback );
 	setSelectedProject(id);
+	return false;
+}
+
+function projectEditButtonClick(event)
+{
+	var id = $(event.target).parents('li').find('input').val();
+
+	var name    = $( "#name" );
+	var command = $( "#command" );
+	var trigger = $( "#trigger" );
+
+	var project = null;
+	for (var i = 0; i < window.projects.length; ++i)
+	{
+		if (window.projects[i].id == id)
+		{
+			project = window.projects[i];
+			break;
+		}
+	}
+	if (project == null)
+	{
+		showErrorMessage("Project doesn't exist");
+		return;
+	}
+	
+	name.val( project.name );
+	command.val( project.command );
+	trigger.val( project.trigger );
+	
+	var allFields = $( [] ).add( name ).add( command ).add( trigger );
+	var tips = $( ".validateTips" );	
+	
+	function updateTips( t )
+	{
+		tips.text( t ).addClass( "ui-state-highlight" );
+		setTimeout(function() {
+			tips.removeClass( "ui-state-highlight", 1500 );
+		}, 500 );
+	}
+	
+	function checkSet( o, n ) {
+		if ( o.val().length > 0) {
+			return true;
+		}
+		else {
+			o.addClass( "ui-state-error" );
+			updateTips( n + " must be specified" );
+			return false;
+		}
+	}	
+	
+	var buttons =
+		{	
+			"Ok": function() {
+				if ( validateForm() )
+				{
+					var data = { action: 'update_project', projectId: id, name: name.val(), command: command.val(), trigger: trigger.val() };
+					jQuery.post("carson_api.php", data, projectActionCallback );
+					$( this ).dialog( "close" );
+				}
+			},
+			Cancel: function() {
+				$( this ).dialog( "close" );
+			}
+		};
+		
+	var dialog = $( "#dialog-form" );
+	
+	dialog.dialog( "option", "title", "Edit Project" );
+	dialog.dialog( "option", "buttons", buttons );
+	dialog.dialog( "open" );	
+	
 	return false;
 }
 
@@ -232,68 +349,54 @@ function projectDeleteButtonClick( event)
 	
 }
 
+function createProjectButtonClick()
+{
+
+	var name    = $( "#name" );
+	var command = $( "#command" );
+	var trigger = $( "#trigger" );
+	
+	var buttons =
+		{	
+			"Create Project": function() {
+				if ( validateForm() ) {
+					var data = { action: 'create_project', name: name.val(), command: command.val(), trigger: trigger.val() };
+					jQuery.post("carson_api.php", data, projectActionCallback );
+					$( this ).dialog( "close" );
+				}
+			},
+			Cancel: function() {
+				$( this ).dialog( "close" );
+			}
+		};
+		
+	var dialog = $( "#dialog-form" );
+	dialog.dialog( "option", "title", "Create Project" );	
+	dialog.dialog( "option", "buttons", buttons );
+	dialog.dialog( "open" );		
+
+}
+
 $(function() {
 	
 	var name    = $( "#name" );
 	var command = $( "#command" );
 	var trigger = $( "#trigger" );
 	
-	var allFields = $( [] ).add( name ).add( command );
-	var tips = $( ".validateTips" );	
-	
-	function updateTips( t )
-	{
-		tips.text( t ).addClass( "ui-state-highlight" );
-		setTimeout(function() {
-			tips.removeClass( "ui-state-highlight", 1500 );
-		}, 500 );
-	}
-	
-	function checkSet( o, n ) {
-		if ( o.val().length > 0) {
-			return true;
-		}
-		else {
-			o.addClass( "ui-state-error" );
-			updateTips( n + " must be specified" );
-			return false;
-		}
-	}
+	var allFields = $( [] ).add( name ).add( command ).add( trigger );	
 	
 	$( "#dialog-form" ).dialog({
 			autoOpen: false,
 			width:  500,
 			height: 600,
 			modal: true,
-			buttons: {
-				"Create a Project": function() {
-					var bValid = true;
-					allFields.removeClass( "ui-state-error" );
-					bValid = bValid && checkSet( name, "name" );
-					bValid = bValid && checkSet( command, "command" );
-					
-					if ( bValid ) {
-						var data = { action: 'create_project', name: name.val(), command: command.val(), trigger: trigger.val() };
-						jQuery.post("carson_api.php", data, projectActionCallback );
-						$( this ).dialog( "close" );
-					}
-				},
-				Cancel: function() {
-					$( this ).dialog( "close" );
-				}
-			},
 			close: function() {
 				allFields.val( "" ).removeClass( "ui-state-error" );
 			}
 		});
 
 	// Create the button to open the new project dialog.
-	$("#create_project").button().click(
-		function() {
-			$( "#dialog-form" ).dialog( "open" );
-		});	
-	
-	$( "#dialog:ui-dialog" ).dialog( "destroy" );
+	$("#create_project").button().click( createProjectButtonClick );
 	
 	updateProjects();
 

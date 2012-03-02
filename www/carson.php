@@ -21,9 +21,18 @@ function carson_addProject($project)
 	$name    = db_escape($project->name);
 	$command = db_escape($project->command);
 	$trigger = db_escape($project->trigger);
-	db_exec("INSERT INTO projects (name, command, trigger) VALUES ('$name', '$command', 'trigger')");
+	db_exec("INSERT INTO projects (name, command, trigger) VALUES ('$name', '$command', '$trigger')");
 	$project->id = db_getLastInsertId();
 	db_exec("INSERT INTO project_builds (projectId, state, time, log) VALUES ('{$project->id}', 'new', date('now'), '')");
+}
+
+function carson_updateProject($project)
+{
+	$id      = db_escape($project->id);
+	$name    = db_escape($project->name);
+	$command = db_escape($project->command);
+	$trigger = db_escape($project->trigger);
+	db_exec("UPDATE projects SET name='$name', command='$command', trigger='$trigger' WHERE id='$id'");
 }
 
 function carson_deleteProject($id)

@@ -24,6 +24,22 @@ if ($action == 'create_project')
 		carson_addProject($project);
 	}
 }
+else if ($action == 'update_project')
+{
+	if (isset($_POST['projectId']) && isset($_POST['name']) && isset($_POST['command']) && isset($_POST['trigger']))
+	{
+		$id 	 = $_POST['projectId'];
+		$name    = $_POST['name'];
+		$command = $_POST['command'];
+		$trigger = $_POST['trigger'];
+		$project = new Project();
+		$project->id	  = $id;
+		$project->name    = $name;
+		$project->command = $command;
+		$project->trigger = $trigger;
+		carson_updateProject($project);
+	}
+}
 else if ($action == 'delete_project')
 {
 	if (isset($_POST['projectId']))
@@ -53,7 +69,7 @@ else if ($action = 'get_projects')
 	// Returns a list of the projects in JSON format.
 	$projects = carson_getProjects();
 	
-	header("Conent-type: application/json");
+	header("Content-type: application/json");
 	
 	$result = array(); 
 	$result['project'] = array();
@@ -89,13 +105,14 @@ else if ($action = 'get_projects')
 			array(
 					'id' => $project->id,
 					'name' => $project->name,
-					'state' => $state
+					'state' => $state,
+					'command' => $project->command,
+					'trigger' => $project->trigger
 				);
 
 	}	
 	
 	echo json_encode($result);
-	
 	
 }
 else
