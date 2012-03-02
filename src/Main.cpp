@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <direct.h>
 
 extern "C"
 {
@@ -14,9 +15,11 @@ extern "C"
 
 #ifdef WIN32
 #include <windows.h>
-#define snprintf _snprintf
-#define popen    _popen
-#define pclose   _pclose
+#define snprintf    _snprintf
+#define popen       _popen
+#define pclose      _pclose
+#define getcwd      _getcwd
+#define chdir       _chdir
 #endif
 
 struct Build
@@ -113,6 +116,9 @@ void BuildProject(Database& db, int projectId)
 
         bool success = true;
         
+        // Save off the working directory, since the script may change it.
+        char* workingDir = getcwd(NULL, 0);
+        
         lua_State* L = luaL_newstate();
 
         // Store information about the build we're running in the Lua state so
@@ -151,6 +157,12 @@ void BuildProject(Database& db, int projectId)
 
         lua_close(L);
         L = NULL;
+        
+        if (workingDir != NULL)
+        {
+            chdir(workingDir);
+            free(workingDir);
+        }
     
     }
 
