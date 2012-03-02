@@ -96,6 +96,21 @@ void SetProjectStatus(Database& db, int projectId, const char* error)
     db.Query(query);
 }
 
+int LuaChdir(lua_State* L)
+{
+    const char* dir = luaL_checkstring(L, 1);
+    lua_pushinteger( L, chdir(dir) );
+    return 1;
+}
+
+/** Binds auxiliary functions/variables. */
+void BindLuaLibrary(lua_State* L)
+{
+    lua_getglobal(L, "os");
+    lua_pushcfunction(L, LuaChdir);
+    lua_setfield(L, -2, "chdir");
+}
+
 /** Initiates building of the project with the specified id. */
 void BuildProject(Database& db, int projectId)
 {
@@ -139,7 +154,7 @@ void BuildProject(Database& db, int projectId)
         lua_rawset(L, LUA_REGISTRYINDEX);
 
         luaL_openlibs(L);
-        lua_pushstring(L, row[colCommand]);
+        BindLuaLibrary(L);
 
         // Change the status to building.
         snprintf(query, sizeof(query), "UPDATE project_builds SET state='building', time=date('now'), log='' WHERE projectId='%d'", projectId);
