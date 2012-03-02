@@ -20,6 +20,7 @@ extern "C"
 #define pclose      _pclose
 #define getcwd      _getcwd
 #define chdir       _chdir
+#define strdup      _strdup
 #endif
 
 struct Build
@@ -28,10 +29,10 @@ struct Build
     int         projectId;
 };
 
-void UpdateLog(Build* build, const char* string, size_t length)
+/** Appends a string to the end of the log for a project. */
+void AppendToLog(Database& db, int projectId, const char* message)
 {
-    // Update the stored log.
-    build->db->Query("UPDATE project_builds SET log=log||? WHERE projectId=?", string, build->projectId );
+    db.Query("UPDATE project_builds SET log=log||? WHERE projectId=?", message, projectId );
 }
 
 extern "C"
@@ -47,22 +48,13 @@ void luai_writestring(lua_State* L, const char* string, size_t length)
     lua_rawget(L, LUA_REGISTRYINDEX);
     Build* build = static_cast<Build*>(lua_touserdata(L, -1));
     assert(build != NULL);
-
-    UpdateLog(build, string, length);
+    AppendToLog(*build->db, build->projectId, string);
     lua_pop(L, 1);
 }
 
 void luai_writeline(lua_State* L)
 {
-    lua_pushlightuserdata(L, &_buildTag);
-    lua_rawget(L, LUA_REGISTRYINDEX);
-    Build* build = static_cast<Build*>(lua_touserdata(L, -1));
-    assert(build != NULL);
-
     luai_writestring(L, "\n", 1);
-    fflush(stdout);
-
-    lua_pop(L, 1);
 }
 
 void luai_writestringerror(lua_State* L, const char* format, const char* param)
@@ -92,6 +84,18 @@ void Install(Database& db)
     db.Query("CREATE TABLE project_builds (id INTEGER PRIMARY KEY, projectId INTEGER, state TINYTEXT, time DATETIME, log LONGTEXT)");
 }
 
+void SetProjectStatus(Database& db, int projectId, const char* error)
+{
+    char query[256];
+    if (error != NULL)
+    {
+        db.Query("UPDATE project_builds SET log=log||? WHERE projectId=?", error, projectId );
+    }
+    snprintf(query, sizeof(query), "UPDATE project_builds SET state='%s', time=date('now') WHERE projectId='%d'",
+        (error == NULL) ? "succeeded" : "failed", projectId);
+    db.Query(query);
+}
+
 /** Initiates building of the project with the specified id. */
 void BuildProject(Database& db, int projectId)
 {
@@ -112,6 +116,8 @@ void BuildProject(Database& db, int projectId)
         char** row = db.GetRow(0);
         
         const char* name = row[colName];
+        char* command = strdup(row[colCommand]);
+
         printf("Running '%s'\n", name);
 
         bool success = true;
@@ -133,27 +139,36 @@ void BuildProject(Database& db, int projectId)
         lua_rawset(L, LUA_REGISTRYINDEX);
 
         luaL_openlibs(L);
+        lua_pushstring(L, row[colCommand]);
 
-        if (luaL_loadstring(L, row[colCommand]) == 0)
+        // Change the status to building.
+        snprintf(query, sizeof(query), "UPDATE project_builds SET state='building', time=date('now'), log='' WHERE projectId='%d'", projectId);
+        db.Query(query);
+
+        if (luaL_loadstring(L, command) == 0)
         {
-
-            // Change the status to building.
-            snprintf(query, sizeof(query), "UPDATE project_builds SET state='building', time=date('now'), log='' WHERE projectId='%d'", projectId);
-            db.Query(query);
-
             if (lua_pcall(L, 0, LUA_MULTRET, 0) != LUA_OK)
             {
                 const char* error = lua_tostring(L, -1);
-                fprintf(stderr, "%s", error);
+                SetProjectStatus(db, projectId, error);
                 lua_pop(L, 1);
             }
-
-            // Change the status to finished.
-            snprintf(query, sizeof(query), "UPDATE project_builds SET state='%s', time=date('now') WHERE projectId='%d'",
-                success ? "succeeded" : "failed", projectId);
-            db.Query(query);
-        
+            else
+            {
+                SetProjectStatus(db, projectId, NULL);
+            }
         }
+        else
+        {
+            const char* error = lua_tostring(L, -1);
+            SetProjectStatus(db, projectId, error);
+            lua_pop(L, 1);
+        }
+
+        // Change the status to finished.
+        snprintf(query, sizeof(query), "UPDATE project_builds SET state='%s', time=date('now') WHERE projectId='%d'",
+            success ? "succeeded" : "failed", projectId);
+        db.Query(query);
 
         lua_close(L);
         L = NULL;
@@ -162,7 +177,11 @@ void BuildProject(Database& db, int projectId)
         {
             chdir(workingDir);
             free(workingDir);
+            workingDir = NULL;
         }
+
+        free(command);
+        command = NULL;
     
     }
 
