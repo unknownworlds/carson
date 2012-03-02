@@ -236,6 +236,7 @@ $(function() {
 	
 	var name    = $( "#name" );
 	var command = $( "#command" );
+	var trigger = $( "#trigger" );
 	
 	var allFields = $( [] ).add( name ).add( command );
 	var tips = $( ".validateTips" );	
@@ -262,7 +263,7 @@ $(function() {
 	$( "#dialog-form" ).dialog({
 			autoOpen: false,
 			width:  500,
-			height: 400,
+			height: 600,
 			modal: true,
 			buttons: {
 				"Create a Project": function() {
@@ -270,9 +271,10 @@ $(function() {
 					allFields.removeClass( "ui-state-error" );
 					bValid = bValid && checkSet( name, "name" );
 					bValid = bValid && checkSet( command, "command" );
-
+					
 					if ( bValid ) {
-						jQuery.post("carson_api.php", { action: 'create_project', name: name.val(), command: command.val() }, projectActionCallback );
+						var data = { action: 'create_project', name: name.val(), command: command.val(), trigger: trigger.val() };
+						jQuery.post("carson_api.php", data, projectActionCallback );
 						$( this ).dialog( "close" );
 					}
 				},

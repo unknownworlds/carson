@@ -12,7 +12,7 @@ $action = $_POST['action'];
 
 if ($action == 'create_project')
 {
-	if (isset($_POST['name']) && isset($_POST['command']))
+	if (isset($_POST['name']) && isset($_POST['command']) && isset($_POST['trigger']))
 	{
 		$name    = $_POST['name'];
 		$command = $_POST['command'];
