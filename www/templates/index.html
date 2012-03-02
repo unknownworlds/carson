@@ -1,0 +1,69 @@
+<html>
+<link type='text/css' href='css/carson.css' rel='Stylesheet' />
+<link type='text/css' href='css/ui-lightness/jquery-ui-1.8.18.custom.css' rel='Stylesheet' />
+<script type='text/javascript' src='js/jquery-1.7.1.min.js'></script>
+<script type='text/javascript' src='js/jquery-ui-1.8.18.custom.min.js'></script>
+<script type='text/javascript' src='js/index.js'></script>
+<script type='text/javascript' src='js/template.js'></script>
+<title>Carson Control Panel</title>
+<body>
+
+	<h1 id='titlebar'>Carson Control Panel</h1>
+
+	<div id='error_message' class='ui-widget' style='display:none;'>
+		<div class='ui-state-error ui-corner-all' style='padding: 0 .7em;'>
+			<p>
+				<span class='ui-icon ui-icon-alert' style='float: left; margin-right: .3em;'></span>
+				<strong id='error_message_text'></strong>
+			</p>
+		</div>
+	</div>
+
+	<!-- Projects list -->
+	<div id='pane_left'>
+		<ol id='projects'></ol>
+		<button id='create_project'>New Project</button>
+	</div>
+
+	<!-- Results panel -->
+	<div id='pane_right'>
+		<pre id='results'></pre>
+	</div>
+	
+	<!-- Form used for new projects -->
+	<div id='dialog-form' title='Create new project'>
+		<p class='validateTips'>All form fields are required.</p>
+		<form>
+			<fieldset>
+				<label for='name'>Name</label>
+				<input type='text' name='name' id='name' class='text ui-widget-content ui-corner-all' />
+				<label for='trigger'>Trigger</label>
+				<textarea name='trigger' id='trigger' class='text ui-widget-content ui-corner-all' rows='5'></textarea>
+				<label for='command'>Command</label>
+				<textarea name='command' id='command' class='text ui-widget-content ui-corner-all' rows='10'></textarea>
+			</fieldset>
+		</form>
+	</div>
+
+	<!-- Confirm dialog. -->
+	<div id='dialog-confirm' title='Delete project?' style='display:none'>
+		<p>
+			<span class='ui-icon ui-icon-alert' style='float:left; margin:0 7px 20px 0;'></span>
+			Are you sure you want to delete the project?
+		</p>
+	</div>
+	
+	<!-- Template used for each project -->
+	<script type='text/html' id='project_template'>
+		<li class='project ui-widget-content' id='project_${id}'>
+			<input type='hidden' name='project_id' class='project_id', value='${id}'/>
+			<span class='project_name'>${name}</span>
+			<span class='project_state'>${state}</span>
+			<button class='project_run_button'>Run</button>
+			<button class='project_delete_button'>Delete</button>
+			<button class='project_edit_button'>Edit</button>
+		</li>
+	</script>
+
+</body>
+</html>
