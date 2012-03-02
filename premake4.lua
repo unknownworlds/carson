@@ -5,14 +5,14 @@ solution "carson"
     defines { "_CRT_SECURE_NO_WARNINGS", "_CRT_SECURE_NO_DEPRECATE", "WIN32", "_WIN32_WINNT" }
     vpaths { 
         ["Header Files"] = "**.h",
-        ["Source Files"] = { "**.cpp", "**.c", "**.asm" },
+        ["Source Files"] = { "**.cpp", "**.c", "**.inl" },
     }
 
 project "carson"
     kind "ConsoleApp"
     location "build"
     language "C++"
-    files { "src/**.h", "src/**.c", "src/**.cpp" }
+    files { "src/**.h", "src/**.c", "src/**.cpp" , "src/**.inl" }
     configuration "Debug"
         defines { "DEBUG" }
         flags { "Symbols" }

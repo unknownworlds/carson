@@ -27,17 +27,8 @@ struct Build
 
 void UpdateLog(Build* build, const char* string, size_t length)
 {
-
     // Update the stored log.
-    size_t querySize = length + 128;
-    char* query = static_cast<char*>(malloc( querySize )); 
-
-    snprintf(query, querySize, "UPDATE project_builds SET log=log||'%s' WHERE projectId='%d'", string, build->projectId);
-    build->db->Query(query);
-
-    free(query);
-    query = NULL;
-
+    build->db->Query("UPDATE project_builds SET log=log||? WHERE projectId=?", string, build->projectId );
 }
 
 extern "C"

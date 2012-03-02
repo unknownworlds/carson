@@ -2,6 +2,7 @@
 #define DATABASE_H
 
 struct sqlite3;
+struct sqlite3_stmt;
 
 class Database
 {
@@ -14,6 +15,13 @@ public:
     void Close();
 
     bool Query(const char* query);
+    
+    /** Query with parameter substitution. */
+    template <typename A1>
+    bool Query(const char* query, A1 arg1);
+
+    template <typename A1, typename A2>
+    bool Query(const char* query, A1 arg1, A2 arg2);
 
     /** Returns the result from the previous query for the specified column. */
     const char* GetResult(const char* colName);
@@ -33,6 +41,13 @@ private:
 
     void FreeQueryResult();
 
+    sqlite3_stmt* QueryBegin(const char* query);
+
+    void QueryBind(sqlite3_stmt* statement, int index, int arg);
+    void QueryBind(sqlite3_stmt* statement, int index, const char* arg);
+
+    bool QueryEnd(sqlite3_stmt* statement);
+
 private:
 
     bool        m_verbose;
@@ -43,5 +58,7 @@ private:
     char**      m_result;
 
 };
+
+#include "Database.inl"
 
 #endif

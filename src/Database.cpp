@@ -1,8 +1,9 @@
 #include "Database.h"
-#include "sqlite3/sqlite3.h"
 
 #include <stdio.h>
 #include <string.h>
+
+#include "sqlite3/sqlite3.h"
 
 Database::Database()
 {
@@ -91,4 +92,28 @@ void Database::FreeQueryResult()
         m_numRows = 0;
         m_numCols = 0;
     }
+}
+
+void Database::QueryBind(sqlite3_stmt* statement, int index, int value)
+{
+    sqlite3_bind_int(statement, index, value);
+}
+
+void Database::QueryBind(sqlite3_stmt* statement, int index, const char* value)
+{
+    sqlite3_bind_text(statement, index, value, -1, SQLITE_TRANSIENT);
+}
+
+sqlite3_stmt* Database::QueryBegin(const char* query)
+{
+    sqlite3_stmt* dbps;
+    sqlite3_prepare_v2(m_db, query, -1, &dbps, NULL);
+    return dbps;
+}
+
+bool Database::QueryEnd(sqlite3_stmt* dbps)
+{
+    int result = sqlite3_step(dbps);
+    sqlite3_finalize(dbps); 
+    return result == SQLITE_DONE;
 }
