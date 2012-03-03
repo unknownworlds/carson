@@ -78,7 +78,7 @@ function carson_getProjects()
 function carson_buildProject($id)
 {
 	$id = db_escape($id);
-	db_exec("UPDATE project_builds SET state='pending' WHERE projectId='$id' AND state!='building'");
+	db_exec("UPDATE project_builds SET state='pending', log='' WHERE projectId='$id' AND state!='building'");
 }
 
 function carson_getProjectLog($id)
