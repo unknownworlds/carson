@@ -27,6 +27,7 @@ struct Build
 {
     Database*   db;
     int         projectId;
+    int         exitCode;
 };
 
 /** Appends a string to the end of the log for a project. */
@@ -112,14 +113,14 @@ void SetProjectStatus(Database& db, int projectId, const char* error)
     db.Query(query);
 }
 
-int LuaChdir(lua_State* L)
+int OsChdir(lua_State* L)
 {
     const char* dir = luaL_checkstring(L, 1);
     lua_pushinteger( L, chdir(dir) );
     return 1;
 }
 
-int LuaCapture(lua_State* L)
+int OsCapture(lua_State* L)
 {
 
     const char* cmd = luaL_checkstring(L, 1);
@@ -144,15 +145,36 @@ int LuaCapture(lua_State* L)
 
 }
 
+/** Replacement for os.exit which will just set the exit code and not kill
+exit the process. */
+int OsExit(lua_State* L)
+{
+    lua_pushlightuserdata(L, &_buildTag);
+    lua_rawget(L, LUA_REGISTRYINDEX);
+    Build* build = static_cast<Build*>(lua_touserdata(L, -1));
+
+    if (lua_isboolean(L, 1))
+    {
+        build->exitCode = (lua_toboolean(L, 1) ? EXIT_SUCCESS : EXIT_FAILURE);
+    }
+    else
+    {
+        build->exitCode = luaL_optint(L, 1, EXIT_SUCCESS);
+    }
+    lua_pop(L, 1);
+    return 0;
+}
+
 /** Binds auxiliary functions/variables. */
 void BindLuaLibrary(lua_State* L)
 {
 
     static const luaL_Reg lib[] =
         {
-            {"chdir", LuaChdir},
-            {"capture", LuaCapture},
-            { NULL, NULL }
+            {"chdir",   OsChdir },
+            {"capture", OsCapture },
+            {"exit",    OsExit },
+            { NULL,     NULL }
         };
     
     lua_getglobal(L, "os");
@@ -195,8 +217,9 @@ void BuildProject(Database& db, int projectId)
         // that it can be accessed from the print callbacks.
     
         Build build;
-        build.db         = &db;
+        build.db        = &db;
         build.projectId = projectId;
+        build.exitCode  = EXIT_SUCCESS;
 
         lua_pushlightuserdata(L, &_buildTag);
         lua_pushlightuserdata(L, &build);
@@ -204,6 +227,22 @@ void BuildProject(Database& db, int projectId)
 
         luaL_openlibs(L);
         BindLuaLibrary(L);
+
+        // Store the last run time as a global.
+
+        snprintf(query, sizeof(query), "SELECT UNIX_TIMESTAMP(time) FROM project_builds WHERE projectId='%d'", projectId);
+        db.Query(query);
+
+        time_t lastTimeRun = 0;
+
+        if (db.GetNumRows() > 0)
+        {
+            char** row = db.GetRow();
+            lastTimeRun = atoi(row[0]);
+        }
+
+        lua_pushnumber(L, static_cast<lua_Number>(lastTimeRun));
+        lua_setglobal(L, "_LAST_TIME_RUN");
 
         // Change the status to building.
         snprintf(query, sizeof(query), "UPDATE project_builds SET state='building', time=NOW(), log='' WHERE projectId='%d'", projectId);

@@ -19,6 +19,10 @@ Scripting
 All of the functions from the Lua 5.2 standard libraries are available in build
 scripts. Some additional functions are listed below:
 
+_LAST_TIME_RUN
+	The last time the project was run (stored as a timestamp compatible with
+	os.date and os.difftime).
+
 os.chdir(directory)
 	Changes the working directory.
 
