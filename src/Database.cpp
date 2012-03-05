@@ -102,5 +102,5 @@ void Database::FreeLastQuery()
 
 size_t Database::EscapeString(const char* src, size_t srcLength, char* dst)
 {
-    return mysql_real_escape_string(m_db, dst, src, srcLength);
+    return mysql_real_escape_string(m_db, dst, src, static_cast<unsigned long>(srcLength));
 }
