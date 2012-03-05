@@ -34,6 +34,11 @@ struct Build
 void AppendToLog(Database& db, int projectId, const char* message)
 {
 
+    if (message == NULL)
+    {
+        return;
+    }
+
     const char* queryStart = "UPDATE project_builds SET log=CONCAT(log,'";
     const char* queryEnd   = "') WHERE projectId=%d";
 
@@ -104,10 +109,6 @@ void Thread_Sleep(int msecs)
 void SetProjectStatus(Database& db, int projectId, int exitCode, const char* error)
 {
     char query[256];
-    if (error != NULL)
-    {
-        AppendToLog(db, projectId, error);
-    }
     snprintf(query, sizeof(query), "UPDATE project_builds SET state='%s', time=NOW() WHERE projectId='%d'",
         (exitCode == EXIT_SUCCESS) ? "succeeded" : "failed", projectId);
     db.Query(query);
@@ -182,15 +183,90 @@ void BindLuaLibrary(lua_State* L)
 
 }
 
+int RunScript(Database& db, const char* command, int projectId)
+{
+
+    // Save off the working directory, since the script may change it.
+    char* workingDir = getcwd(NULL, 0);
+    
+    lua_State* L = luaL_newstate();
+
+    // Store information about the build we're running in the Lua state so
+    // that it can be accessed from the print callbacks.
+
+    Build build;
+    build.db        = &db;
+    build.projectId = projectId;
+    build.exitCode  = EXIT_SUCCESS;
+
+    lua_pushlightuserdata(L, &_buildTag);
+    lua_pushlightuserdata(L, &build);
+    lua_rawset(L, LUA_REGISTRYINDEX);
+
+    luaL_openlibs(L);
+    BindLuaLibrary(L);
+
+    // Store the last run time as a global.
+
+    char query[256];
+    snprintf(query, sizeof(query), "SELECT UNIX_TIMESTAMP(time) FROM project_builds WHERE projectId='%d'", projectId);
+    db.Query(query);
+
+    time_t lastTimeRun = 0;
+
+    if (db.GetNumRows() > 0)
+    {
+        char** row = db.GetRow();
+        lastTimeRun = atoi(row[0]);
+    }
+
+    lua_pushnumber(L, static_cast<lua_Number>(lastTimeRun));
+    lua_setglobal(L, "_LAST_TIME_RUN");
+
+    int exitCode = EXIT_FAILURE;
+
+    if (luaL_loadstring(L, command) == 0)
+    {
+        if (lua_pcall(L, 0, LUA_MULTRET, 0) != LUA_OK)
+        {
+            const char* error = lua_tostring(L, -1);
+            AppendToLog(db, projectId, error);
+            lua_pop(L, 1);
+        }
+        else
+        {
+            exitCode = build.exitCode;
+        }
+    }
+    else
+    {
+        const char* error = lua_tostring(L, -1);
+        AppendToLog(db, projectId, error);
+        lua_pop(L, 1);
+    }
+
+    lua_close(L);
+    L = NULL;
+    
+    if (workingDir != NULL)
+    {
+        chdir(workingDir);
+        free(workingDir);
+        workingDir = NULL;
+    }
+
+    return exitCode;
+
+}
+
 /** Initiates building of the project with the specified id. */
 void BuildProject(Database& db, int projectId)
 {
 
-    char query[512];
-
     // Get the information about the build.
 
-    snprintf(query, sizeof(query), "SELECT * FROM projects WHERE id='%d'", projectId);
+    char query[256];
+    snprintf(query, sizeof(query), "SELECT name, command FROM projects WHERE id='%d'", projectId);
     db.Query(query);
 
     if (db.GetNumRows() > 0)
@@ -204,77 +280,16 @@ void BuildProject(Database& db, int projectId)
         const char* name = row[colName];
         char* command = strdup(row[colCommand]);
 
-        printf("Running '%s'\n", name);
-
-        // Save off the working directory, since the script may change it.
-        char* workingDir = getcwd(NULL, 0);
-        
-        lua_State* L = luaL_newstate();
-
-        // Store information about the build we're running in the Lua state so
-        // that it can be accessed from the print callbacks.
-    
-        Build build;
-        build.db        = &db;
-        build.projectId = projectId;
-        build.exitCode  = EXIT_SUCCESS;
-
-        lua_pushlightuserdata(L, &_buildTag);
-        lua_pushlightuserdata(L, &build);
-        lua_rawset(L, LUA_REGISTRYINDEX);
-
-        luaL_openlibs(L);
-        BindLuaLibrary(L);
-
-        // Store the last run time as a global.
-
-        snprintf(query, sizeof(query), "SELECT UNIX_TIMESTAMP(time) FROM project_builds WHERE projectId='%d'", projectId);
-        db.Query(query);
-
-        time_t lastTimeRun = 0;
-
-        if (db.GetNumRows() > 0)
-        {
-            char** row = db.GetRow();
-            lastTimeRun = atoi(row[0]);
-        }
-
-        lua_pushnumber(L, static_cast<lua_Number>(lastTimeRun));
-        lua_setglobal(L, "_LAST_TIME_RUN");
+        printf("> Project '%s' started\n", name);
 
         // Change the status to building.
         snprintf(query, sizeof(query), "UPDATE project_builds SET state='building', time=NOW(), log='' WHERE projectId='%d'", projectId);
         db.Query(query);
 
-        if (luaL_loadstring(L, command) == 0)
-        {
-            if (lua_pcall(L, 0, LUA_MULTRET, 0) != LUA_OK)
-            {
-                const char* error = lua_tostring(L, -1);
-                SetProjectStatus(db, projectId, EXIT_FAILURE, error);
-                lua_pop(L, 1);
-            }
-            else
-            {
-                SetProjectStatus(db, projectId, build.exitCode, NULL);
-            }
-        }
-        else
-        {
-            const char* error = lua_tostring(L, -1);
-            SetProjectStatus(db, projectId, EXIT_FAILURE, error);
-            lua_pop(L, 1);
-        }
+        int exitCode = RunScript(db, command, projectId);
+        SetProjectStatus(db, projectId, exitCode, NULL);
 
-        lua_close(L);
-        L = NULL;
-        
-        if (workingDir != NULL)
-        {
-            chdir(workingDir);
-            free(workingDir);
-            workingDir = NULL;
-        }
+        printf("> Project %s\n", (exitCode == EXIT_SUCCESS) ? "succeeded" : "failed");
 
         free(command);
         command = NULL;
@@ -290,7 +305,7 @@ void Run(Database& db)
     {
 
         Thread_Sleep(sleepInverval);
-        db.Query("SELECT * FROM project_builds");
+        db.Query("SELECT projectId, state FROM project_builds");
 
         // Check for a pending request.
         if (db.GetNumRows() > 0)
