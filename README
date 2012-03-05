@@ -1,0 +1,28 @@
+Carson - Build Management and Continous Integration System
+
+Copyright (c) 2012, Unknown Worlds Entertainment, Inc.
+All rights reserved.
+
+See COPYRIGHT for complete license information.
+
+About
+-------------------
+
+Carson is a very simple continuous integration and build management system. It
+allows you write simple Lua scripts that will be executed when a trigger is
+satisfied (also scripted in Lua) or when a user manually triggers them through
+the web-based interface.
+
+Scripting
+-------------------
+
+All of the functions from the Lua 5.2 standard libraries are available in build
+scripts. Some additional functions are listed below:
+
+os.chdir(directory)
+	Changes the working directory.
+
+os.capture(command)
+	This function is equivalent to the os.execute function, except that the
+	result is returned as a string instead of output to the standard output.
+
