@@ -27,4 +27,15 @@ function schedule.daily(time)
 		
 end
 
+-- Sets the exit code so that the project will be run at the specified interval.
+-- Example usage: schedule.periodic(10)
+function schedule.periodic(minutes)
+
+	local currentTime = os.time()
+	local secs = os.difftime(currentTime, _LAST_TIME_RUN)
+	
+	os.exit( secs > minutes * 60 )
+
+end
+
 return schedule
