@@ -14,6 +14,7 @@ solution "carson"
         ["Header Files"] = "**.h",
         ["Source Files"] = { "**.cpp", "**.c", "**.inl" },
     }
+	flags { "StaticRuntime" } -- for easier deployment
 	
 	if os.is("windows") then
 		defines { "_CRT_SECURE_NO_WARNINGS", "_CRT_SECURE_NO_DEPRECATE", "WIN32", "_WIN32_WINNT" }
