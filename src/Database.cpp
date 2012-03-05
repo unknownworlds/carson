@@ -1,24 +1,31 @@
 #include "Database.h"
 
+#ifdef WIN32
+#include <windows.h>
+#endif
+
+#include <mysql.h>
 #include <stdio.h>
 #include <string.h>
 
-#include "sqlite3/sqlite3.h"
-
 Database::Database()
 {
-    m_db        = NULL;
-    m_result    = NULL;
-    m_numRows   = 0;
-    m_numCols   = 0;
-    m_verbose   = false;
+    m_numRows = 0;
+    m_numCols = 0;
+    m_result  = NULL;
+    m_field   = NULL;
 }
 
-bool Database::Open(const char* dbFileName)
+bool Database::Connect(const char* host, const char* userName, const char* password)
 {
-    if (sqlite3_open(dbFileName, &m_db) != SQLITE_OK)
+    m_db = mysql_init(NULL);
+    if (m_db == NULL)
     {
-        sqlite3_close(m_db);
+        return false;
+    }
+    if (!mysql_real_connect(m_db, host, userName, password, NULL, 0, NULL, 0))
+    {
+        Close();
         return false;
     }
     return true;
@@ -26,39 +33,38 @@ bool Database::Open(const char* dbFileName)
 
 void Database::Close()
 {
-    FreeQueryResult();
-    sqlite3_close(m_db);
+    FreeLastQuery();
+    mysql_close(m_db);
     m_db = NULL;
+}
+
+bool Database::Select(const char* database)
+{
+    return mysql_select_db(m_db, database) == 0;
 }
 
 bool Database::Query(const char* query)
 {
 
-    // Free any previous queries result.
-    FreeQueryResult();
+    FreeLastQuery();
 
-    bool success = false;
+    if (mysql_query(m_db, query) != 0)
+    {
+        fprintf(stderr, "Error: %s in query '%s'\n", mysql_error(m_db), query);
+        return false;
+    }
 
-    char* errorMessage;
-    if ( sqlite3_get_table(m_db, query, &m_result, &m_numRows, &m_numCols, &errorMessage) != SQLITE_OK )
+    m_result = mysql_store_result(m_db);
+
+    if (m_result != NULL)
     {
-        fprintf(stderr, "SQL error: %s\n", errorMessage);
-        sqlite3_free(errorMessage);
-        success = true;
+        m_numCols = mysql_num_fields(m_result);
+        m_numRows = static_cast<int>(mysql_num_rows(m_result));
+        m_field   = mysql_fetch_fields(m_result);
     }
-    else if (m_verbose)
-    {
-        printf("%s\n", query);
-        for (int r = 0; r < m_numRows; ++r)
-        {
-            printf("Row %d:\n", r);
-            for (int c = 0; c < m_numCols; ++c)
-            {
-                printf("    %s = %s\n", m_result[c], m_result[m_numCols + r * m_numRows + c]);
-            }
-        }
-    }
-    return success;
+
+    return true;
+
 }
 
 int Database::GetNumRows() const
@@ -70,7 +76,7 @@ int Database::GetColumn(const char* name) const
 {
     for (int i = 0; i < m_numCols; ++i)
     {
-        if (strcmp(m_result[i], name) == 0)
+        if (strcmp(m_field[i].name, name) == 0)
         {
             return i;
         }
@@ -78,42 +84,23 @@ int Database::GetColumn(const char* name) const
     return -1;
 }
 
-char** Database::GetRow(int row) const
+char** Database::GetRow() const
 {
-    return m_result + (row + 1) * m_numCols;
+    MYSQL_ROW row = mysql_fetch_row(m_result);
+    return row;
 }
 
-void Database::FreeQueryResult()
+void Database::FreeLastQuery()
 {
     if (m_result != NULL)
     {
-        sqlite3_free_table(m_result);
+        mysql_free_result(m_result);
         m_result = NULL;
-        m_numRows = 0;
-        m_numCols = 0;
+        m_field  = NULL;
     }
 }
 
-void Database::QueryBind(sqlite3_stmt* statement, int index, int value)
+size_t Database::EscapeString(const char* src, size_t srcLength, char* dst)
 {
-    sqlite3_bind_int(statement, index, value);
-}
-
-void Database::QueryBind(sqlite3_stmt* statement, int index, const char* value)
-{
-    sqlite3_bind_text(statement, index, value, -1, SQLITE_TRANSIENT);
-}
-
-sqlite3_stmt* Database::QueryBegin(const char* query)
-{
-    sqlite3_stmt* dbps;
-    sqlite3_prepare_v2(m_db, query, -1, &dbps, NULL);
-    return dbps;
-}
-
-bool Database::QueryEnd(sqlite3_stmt* dbps)
-{
-    int result = sqlite3_step(dbps);
-    sqlite3_finalize(dbps); 
-    return result == SQLITE_DONE;
+    return mysql_real_escape_string(m_db, dst, src, srcLength);
 }

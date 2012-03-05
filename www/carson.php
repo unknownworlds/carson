@@ -11,9 +11,68 @@ class Project
 	var $time;	// time the project was last built.
 };
 
-define("DB_NAME", "../carson.db");
+// Name of the database. Can be changed if there are conflicts.
+define('DB_NAME', 'carson');
+define('CONFIG_FILENAME', '../carson.config');
 
-db_connect(DB_NAME) or die("Couldn't connect to database");
+function carson_install($dbHost, $dbUserName, $dbPassword)
+{
+
+	if (!db_connect($dbHost, $dbUserName, $dbPassword))
+	{
+		die("Couldn't connect to database");
+	}
+	
+	// Write the config file.
+	$config  = "DB_HOST     = '$dbHost'\n";
+	$config .= "DB_USERNAME = '$dbUserName'\n";
+	$config .= "DB_PASSWORD = '$dbPassword'";
+	file_put_contents(CONFIG_FILENAME, $config);
+	
+	// Setup the database.
+	db_exec("DROP DATABASE IF EXISTS " . DB_NAME);
+	db_exec("CREATE DATABASE " . DB_NAME);
+	db_select(DB_NAME);
+	db_exec("CREATE TABLE projects (id INT NOT NULL AUTO_INCREMENT, PRIMARY KEY(id), name TINYTEXT, test MEDIUMTEXT, command MEDIUMTEXT)");
+    db_exec("CREATE TABLE project_builds (id INT NOT NULL AUTO_INCREMENT, PRIMARY KEY(id), projectId INT, state TINYTEXT, time DATETIME, log LONGTEXT)");
+	
+}
+
+function carson_installed()
+{
+	return file_exists(CONFIG_FILENAME);
+}
+
+/** Loads the configuration and connects to the database. */
+function carson_connect()
+{
+	$lines  = file(CONFIG_FILENAME);
+	$config = array();
+	foreach ($lines as $line)
+	{
+		if (preg_match("/^\s*(\S*)\s*=\s*\'(\S*)\'$/", $line, $matches))
+		{
+			$config[ $matches[1] ] = $matches[2];
+		}
+	}
+	
+	if (!isset($config['DB_HOST']) || 
+	    !isset($config['DB_USERNAME']) || 
+		!isset($config['DB_PASSWORD']))
+	{
+		die("Config is invalid");
+	}
+	
+	$dbHost     = $config['DB_HOST'];
+	$dbUserName = $config['DB_USERNAME'];
+	$dbPassword = $config['DB_PASSWORD'];
+	
+	if (!db_connect($dbHost, $dbUserName, $dbPassword) or !db_select(DB_NAME))
+	{
+		die("Couldn't connect to database");
+	}
+	
+}
 
 /** Adds a new new project to the system. */
 function carson_addProject($project)
@@ -21,9 +80,9 @@ function carson_addProject($project)
 	$name    = db_escape($project->name);
 	$command = db_escape($project->command);
 	$trigger = db_escape($project->trigger);
-	db_exec("INSERT INTO projects (name, command, trigger) VALUES ('$name', '$command', '$trigger')");
+	db_exec("INSERT INTO projects (name, command, test) VALUES ('$name', '$command', '$trigger')");
 	$project->id = db_getLastInsertId();
-	db_exec("INSERT INTO project_builds (projectId, state, time, log) VALUES ('{$project->id}', 'new', date('now'), '')");
+	db_exec("INSERT INTO project_builds (projectId, state, time, log) VALUES ('{$project->id}', 'new', NOW(), '')");
 }
 
 function carson_updateProject($project)
@@ -32,7 +91,7 @@ function carson_updateProject($project)
 	$name    = db_escape($project->name);
 	$command = db_escape($project->command);
 	$trigger = db_escape($project->trigger);
-	db_exec("UPDATE projects SET name='$name', command='$command', trigger='$trigger' WHERE id='$id'");
+	db_exec("UPDATE projects SET name='$name', command='$command', test='$trigger' WHERE id='$id'");
 }
 
 function carson_deleteProject($id)
@@ -53,7 +112,7 @@ function carson_getProjects()
 		$project->id      = $row['id'];
 		$project->name    = $row['name'];
 		$project->command = $row['command'];
-		$project->trigger = $row['trigger'];
+		$project->trigger = $row['test'];
 		$projects[] = $project;
 	}
 	

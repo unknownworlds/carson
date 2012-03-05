@@ -10,6 +10,26 @@ if (!isset($_POST['action']))
 
 $action = $_POST['action'];
 
+if (!carson_installed())
+{
+	if ($action == 'install')
+	{
+		$dbHost     = $_POST['db_host'];
+		$dbUserName = $_POST['db_username'];
+		$dbPassword = $_POST['db_password'];
+		carson_install($dbHost, $dbUserName, $dbPassword);
+		echo "Installation complete";
+		return;
+	}
+	else
+	{
+		echo "Carson is not installed";
+		return;
+	}
+}
+
+carson_connect();
+
 if ($action == 'create_project')
 {
 	if (isset($_POST['name']) && isset($_POST['command']) && isset($_POST['trigger']))

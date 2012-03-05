@@ -32,7 +32,30 @@ struct Build
 /** Appends a string to the end of the log for a project. */
 void AppendToLog(Database& db, int projectId, const char* message)
 {
-    db.Query("UPDATE project_builds SET log=log||? WHERE projectId=?", message, projectId );
+
+    const char* queryStart = "UPDATE project_builds SET log=CONCAT(log,'";
+    const char* queryEnd   = "') WHERE projectId=%d";
+
+    size_t queryStartLength = strlen(queryStart);
+    size_t queryEndLength   = strlen(queryEnd);
+
+    size_t messageLength = strlen(message);
+
+    size_t queryLength;
+    queryLength  = queryStartLength;    // room for the first part of the query.
+    queryLength += messageLength * 2;   // room for the escaped message.
+    queryLength += queryEndLength;      // room for the last part of the query.
+
+    char* query = new char[queryLength + 1];
+
+    strcpy(query, queryStart);
+    size_t length = db.EscapeString(message, messageLength, query + queryStartLength);
+    sprintf(query + queryStartLength + length, queryEnd, projectId);
+
+    db.Query(query);
+
+    delete [] query;
+
 }
 
 extern "C"
@@ -77,21 +100,14 @@ void Thread_Sleep(int msecs)
     Sleep(msecs);
 }
 
-/** Creates the tables in the datbase */
-void Install(Database& db)
-{
-    db.Query("CREATE TABLE projects (id INTEGER PRIMARY KEY, name TINYTEXT, trigger MEDIUMTEXT, command MEDIUMTEXT)");
-    db.Query("CREATE TABLE project_builds (id INTEGER PRIMARY KEY, projectId INTEGER, state TINYTEXT, time DATETIME, log LONGTEXT)");
-}
-
 void SetProjectStatus(Database& db, int projectId, const char* error)
 {
     char query[256];
     if (error != NULL)
     {
-        db.Query("UPDATE project_builds SET log=log||? WHERE projectId=?", error, projectId );
+        AppendToLog(db, projectId, error);
     }
-    snprintf(query, sizeof(query), "UPDATE project_builds SET state='%s', time=date('now') WHERE projectId='%d'",
+    snprintf(query, sizeof(query), "UPDATE project_builds SET state='%s', time=NOW() WHERE projectId='%d'",
         (error == NULL) ? "succeeded" : "failed", projectId);
     db.Query(query);
 }
@@ -128,7 +144,7 @@ void BuildProject(Database& db, int projectId)
         int colName    = db.GetColumn("name");
         int colCommand = db.GetColumn("command");
 
-        char** row = db.GetRow(0);
+        char** row = db.GetRow();
         
         const char* name = row[colName];
         char* command = strdup(row[colCommand]);
@@ -157,7 +173,7 @@ void BuildProject(Database& db, int projectId)
         BindLuaLibrary(L);
 
         // Change the status to building.
-        snprintf(query, sizeof(query), "UPDATE project_builds SET state='building', time=date('now'), log='' WHERE projectId='%d'", projectId);
+        snprintf(query, sizeof(query), "UPDATE project_builds SET state='building', time=NOW(), log='' WHERE projectId='%d'", projectId);
         db.Query(query);
 
         if (luaL_loadstring(L, command) == 0)
@@ -181,7 +197,7 @@ void BuildProject(Database& db, int projectId)
         }
 
         // Change the status to finished.
-        snprintf(query, sizeof(query), "UPDATE project_builds SET state='%s', time=date('now') WHERE projectId='%d'",
+        snprintf(query, sizeof(query), "UPDATE project_builds SET state='%s', time=NOW() WHERE projectId='%d'",
             success ? "succeeded" : "failed", projectId);
         db.Query(query);
 
@@ -209,7 +225,6 @@ void Run(Database& db)
     {
 
         Thread_Sleep(sleepInverval);
-
         db.Query("SELECT * FROM project_builds");
 
         // Check for a pending request.
@@ -227,7 +242,7 @@ void Run(Database& db)
 
             for (int i = 0; i < db.GetNumRows(); ++i)
             {
-                char** row = db.GetRow(i);
+                char** row = db.GetRow();
                 if (strcmp(row[colState], "pending") == 0)
                 {
                     int projectId = atoi(row[colProjectId]);
@@ -244,21 +259,47 @@ void Run(Database& db)
 int main(int argc, char* argv[])
 {
 
-    const char* dbFileName = "carson.db";
+    const char* configFileName = "carson.config";
 
-    Database db;
-    db.Open(dbFileName);
-    
-    // If there's nothing in the database, install our tables.
-    db.Query("select * from sqlite_master");
-    if (db.GetNumRows() == 0)
+    // Load the config.
+
+    FILE* file = fopen(configFileName, "rt");
+    if (file == NULL)
     {
-        printf("Setting up database\n");
-        Install(db);
+        fprintf(stderr, "Couldn't load config file '%s'\n", configFileName);
+        exit(EXIT_FAILURE);
     }
 
+    char dbHost[256]     = { 0 };
+    char dbUserName[256] = { 0 };
+    char dbPassword[256] = { 0 };
+
+    char buffer[256];
+    while (fgets(buffer, sizeof(buffer), file))
+    {
+        char field[256];
+        char value[256];
+        if (sscanf(buffer, "%s = '%s", field, value) == 2)
+        {
+            char* quote = strchr(value, '\'');
+            if (quote == NULL) continue;
+            *quote = 0;
+
+            if (strcmp(field, "DB_HOST") == 0) strcpy(dbHost, value);
+            else if (strcmp(field, "DB_USERNAME") == 0) strcpy(dbUserName, value);
+            else if (strcmp(field, "DB_PASSWORD") == 0) strcpy(dbPassword, value);
+        }
+    }
+
+    fclose(file);
+    file = NULL;
+
+    Database db;
+    if (!db.Connect(dbHost, dbUserName, dbPassword) || !db.Select("carson"))
+    {
+        fprintf(stderr, "Couldn't connect to database\n");
+        exit(EXIT_FAILURE);
+    }
     Run(db);
-
     return 0;
-
 }

@@ -1,0 +1,36 @@
+<html>
+<link type='text/css' href='css/carson.css' rel='Stylesheet' />
+<link type='text/css' href='css/ui-lightness/jquery-ui-1.8.18.custom.css' rel='Stylesheet' />
+<script type='text/javascript' src='js/jquery-1.7.1.min.js'></script>
+<script type='text/javascript' src='js/jquery-ui-1.8.18.custom.min.js'></script>
+<script type='text/javascript' src='js/install.js'></script>
+<script type='text/javascript' src='js/template.js'></script>
+<title>Carson Install</title>
+<body>
+
+	<h1 id='titlebar'>Carson Install</h1>
+
+	<div id='error_message' class='ui-widget' style='display:none;'>
+		<div class='ui-state-error ui-corner-all' style='padding: 0 .7em;'>
+			<p>
+				<span class='ui-icon ui-icon-alert' style='float: left; margin-right: .3em;'></span>
+				<strong id='error_message_text'></strong>
+			</p>
+		</div>
+	</div>
+	
+	<div id='install_form' title='Setup'>
+		<form>
+			<fieldset>
+				<label for='db_host'>Database Host</label>
+				<input type='text' name='db_host' id='db_host' class='text ui-widget-content ui-corner-all' />
+				<label for='db_username'>Database User Name</label>
+				<input type='text' name='db_username' id='db_username' class='text ui-widget-content ui-corner-all' />
+				<label for='db_password'>Database Password</label>
+				<input type='text' name='db_password' id='db_password' class='text ui-widget-content ui-corner-all' />
+			</fieldset>
+		</form>
+	</div>
+
+</body>
+</html>

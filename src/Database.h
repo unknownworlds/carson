@@ -1,8 +1,9 @@
 #ifndef DATABASE_H
 #define DATABASE_H
 
-struct sqlite3;
-struct sqlite3_stmt;
+struct st_mysql;
+struct st_mysql_res;
+struct st_mysql_field;
 
 class Database
 {
@@ -11,18 +12,13 @@ public:
 
     Database();
 
-    bool Open(const char* dbFileName);
+    bool Connect(const char* host, const char* userName, const char* password);
     void Close();
+
+    bool Select(const char* database);
 
     bool Query(const char* query);
     
-    /** Query with parameter substitution. */
-    template <typename A1>
-    bool Query(const char* query, A1 arg1);
-
-    template <typename A1, typename A2>
-    bool Query(const char* query, A1 arg1, A2 arg2);
-
     /** Returns the result from the previous query for the specified column. */
     const char* GetResult(const char* colName);
 
@@ -33,32 +29,27 @@ public:
     specified name. If the column didn't exist, returns -1. */
     int GetColumn(const char* name) const;
 
-    /** Returns an array of values for the specified row. The array should be
+    /** Returns an array of values for the next row. The array should be
     indexed using values returned from GetColumn. */
-    char** GetRow(int row) const;
+    char** GetRow() const;
+
+    /** The dst buffer should be allocated to include 2*srcLength + 1 characters */
+    size_t EscapeString(const char* src, size_t srcLength, char* dst);
 
 private:
 
-    void FreeQueryResult();
-
-    sqlite3_stmt* QueryBegin(const char* query);
-
-    void QueryBind(sqlite3_stmt* statement, int index, int arg);
-    void QueryBind(sqlite3_stmt* statement, int index, const char* arg);
-
-    bool QueryEnd(sqlite3_stmt* statement);
+    void FreeLastQuery();
 
 private:
 
-    bool        m_verbose;
+    bool            m_verbose;
 
-    sqlite3*    m_db;
-    int         m_numRows;
-    int         m_numCols;
-    char**      m_result;
+    st_mysql*       m_db;
+    int             m_numRows;
+    int             m_numCols;
+    st_mysql_res*   m_result;
+    st_mysql_field* m_field;
 
 };
-
-#include "Database.inl"
 
 #endif
