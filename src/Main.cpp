@@ -28,6 +28,7 @@ struct Build
     Database*   db;
     int         projectId;
     int         exitCode;
+    bool        log;
 };
 
 /** Appends a string to the end of the log for a project. */
@@ -77,7 +78,10 @@ void luai_writestring(lua_State* L, const char* string, size_t /*length*/)
     lua_rawget(L, LUA_REGISTRYINDEX);
     Build* build = static_cast<Build*>(lua_touserdata(L, -1));
     assert(build != NULL);
-    AppendToLog(*build->db, build->projectId, string);
+    if (build->log)
+    {
+        AppendToLog(*build->db, build->projectId, string);
+    }
     lua_pop(L, 1);
 }
 
@@ -183,7 +187,7 @@ void BindLuaLibrary(lua_State* L)
 
 }
 
-int RunScript(Database& db, const char* command, int projectId)
+int RunScript(Database& db, const char* command, int projectId, bool log)
 {
 
     // Save off the working directory, since the script may change it.
@@ -198,6 +202,7 @@ int RunScript(Database& db, const char* command, int projectId)
     build.db        = &db;
     build.projectId = projectId;
     build.exitCode  = EXIT_SUCCESS;
+    build.log       = log;
 
     lua_pushlightuserdata(L, &_buildTag);
     lua_pushlightuserdata(L, &build);
@@ -286,7 +291,7 @@ void BuildProject(Database& db, int projectId)
         snprintf(query, sizeof(query), "UPDATE project_builds SET state='building', time=NOW(), log='' WHERE projectId='%d'", projectId);
         db.Query(query);
 
-        int exitCode = RunScript(db, command, projectId);
+        int exitCode = RunScript(db, command, projectId, true);
         SetProjectStatus(db, projectId, exitCode);
 
         printf("> Project %s\n", (exitCode == EXIT_SUCCESS) ? "succeeded" : "failed");
@@ -363,7 +368,7 @@ void BuildTriggeredProjects(Database& db)
             int projectId = atoi(row[colId]);
             char* command = strdup(row[colTest]);
 
-            int exitCode = RunScript(db, command, projectId);
+            int exitCode = RunScript(db, command, projectId, false);
 
             free(command);
             command = NULL;
