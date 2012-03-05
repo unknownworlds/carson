@@ -25,14 +25,48 @@ extern "C"
 
 struct Build
 {
+
+    Build() { bufferLength = 0; }
+
     Database*   db;
     int         projectId;
     int         exitCode;
     bool        log;
+    char        buffer[160];
+    size_t      bufferLength;
+
 };
 
+void FlushBuffer(Build* build)
+{
+
+    if (build->bufferLength == 0)
+    {
+        return;
+    }
+
+#define QUERY_START "UPDATE project_builds SET log=CONCAT(log,'"
+#define QUERY_END   "') WHERE projectId=%d"
+
+    const size_t queryStartLength = sizeof(QUERY_START) - 1;
+    const size_t queryEndLength   = sizeof(QUERY_END) - 1;
+
+    char query[queryStartLength + sizeof(build->buffer) * 2 + queryEndLength + 1];
+
+    strcpy(query, QUERY_START);
+    size_t length = build->db->EscapeString(build->buffer, build->bufferLength, query + queryStartLength);
+    sprintf(query + queryStartLength + length, QUERY_END, build->projectId);
+
+    build->db->Query(query);
+    build->bufferLength = 0;
+
+#undef QUERY_START
+#undef QUERY_END
+
+}
+
 /** Appends a string to the end of the log for a project. */
-void AppendToLog(Database& db, int projectId, const char* message)
+void AppendToLog(Build* build, const char* message)
 {
 
     if (message == NULL)
@@ -40,28 +74,33 @@ void AppendToLog(Database& db, int projectId, const char* message)
         return;
     }
 
-    const char* queryStart = "UPDATE project_builds SET log=CONCAT(log,'";
-    const char* queryEnd   = "') WHERE projectId=%d";
-
-    size_t queryStartLength = strlen(queryStart);
-    size_t queryEndLength   = strlen(queryEnd);
-
     size_t messageLength = strlen(message);
 
-    size_t queryLength;
-    queryLength  = queryStartLength;    // room for the first part of the query.
-    queryLength += messageLength * 2;   // room for the escaped message.
-    queryLength += queryEndLength;      // room for the last part of the query.
+    while (messageLength > 0)
+    {
 
-    char* query = new char[queryLength + 1];
+        // Copy into the buffer.
 
-    strcpy(query, queryStart);
-    size_t length = db.EscapeString(message, messageLength, query + queryStartLength);
-    sprintf(query + queryStartLength + length, queryEnd, projectId);
+        size_t maxLength = sizeof(build->buffer) - build->bufferLength;
+        size_t length = messageLength;
 
-    db.Query(query);
+        if (length > maxLength)
+        {
+            length = maxLength;
+        }
 
-    delete [] query;
+        memcpy(build->buffer + build->bufferLength, message, length);
+        build->bufferLength += length;
+        
+        message += length;
+        messageLength -= length;
+
+        if (build->bufferLength == sizeof(build->buffer))
+        {
+            FlushBuffer(build);
+        }
+
+    }
 
 }
 
@@ -80,7 +119,7 @@ void luai_writestring(lua_State* L, const char* string, size_t /*length*/)
     assert(build != NULL);
     if (build->log)
     {
-        AppendToLog(*build->db, build->projectId, string);
+        AppendToLog(build, string);
     }
     lua_pop(L, 1);
 }
@@ -235,7 +274,7 @@ int RunScript(Database& db, const char* command, int projectId, bool log)
         if (lua_pcall(L, 0, LUA_MULTRET, 0) != LUA_OK)
         {
             const char* error = lua_tostring(L, -1);
-            AppendToLog(db, projectId, error);
+            AppendToLog(&build, error);
             lua_pop(L, 1);
         }
         else
@@ -246,12 +285,14 @@ int RunScript(Database& db, const char* command, int projectId, bool log)
     else
     {
         const char* error = lua_tostring(L, -1);
-        AppendToLog(db, projectId, error);
+        AppendToLog(&build, error);
         lua_pop(L, 1);
     }
 
     lua_close(L);
     L = NULL;
+
+    FlushBuffer(&build);
     
     if (workingDir != NULL)
     {
