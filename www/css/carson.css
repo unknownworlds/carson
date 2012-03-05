@@ -144,3 +144,17 @@ input.text {
 .project_status_building  {
 	background-image: url("images/status_running.gif");
 }
+
+#command, #trigger {
+	font-family: "Lucida Console", "Courier New";
+	font-size: 80%;
+	width: 100%;
+}
+
+#command {
+	height: 180px;
+}
+
+#trigger {
+	height: 100px;
+}
