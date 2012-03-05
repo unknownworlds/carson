@@ -101,7 +101,7 @@ void Thread_Sleep(int msecs)
     Sleep(msecs);
 }
 
-void SetProjectStatus(Database& db, int projectId, const char* error)
+void SetProjectStatus(Database& db, int projectId, int exitCode, const char* error)
 {
     char query[256];
     if (error != NULL)
@@ -109,7 +109,7 @@ void SetProjectStatus(Database& db, int projectId, const char* error)
         AppendToLog(db, projectId, error);
     }
     snprintf(query, sizeof(query), "UPDATE project_builds SET state='%s', time=NOW() WHERE projectId='%d'",
-        (error == NULL) ? "succeeded" : "failed", projectId);
+        (exitCode == EXIT_SUCCESS) ? "succeeded" : "failed", projectId);
     db.Query(query);
 }
 
@@ -206,8 +206,6 @@ void BuildProject(Database& db, int projectId)
 
         printf("Running '%s'\n", name);
 
-        bool success = true;
-        
         // Save off the working directory, since the script may change it.
         char* workingDir = getcwd(NULL, 0);
         
@@ -253,25 +251,20 @@ void BuildProject(Database& db, int projectId)
             if (lua_pcall(L, 0, LUA_MULTRET, 0) != LUA_OK)
             {
                 const char* error = lua_tostring(L, -1);
-                SetProjectStatus(db, projectId, error);
+                SetProjectStatus(db, projectId, EXIT_FAILURE, error);
                 lua_pop(L, 1);
             }
             else
             {
-                SetProjectStatus(db, projectId, NULL);
+                SetProjectStatus(db, projectId, build.exitCode, NULL);
             }
         }
         else
         {
             const char* error = lua_tostring(L, -1);
-            SetProjectStatus(db, projectId, error);
+            SetProjectStatus(db, projectId, EXIT_FAILURE, error);
             lua_pop(L, 1);
         }
-
-        // Change the status to finished.
-        snprintf(query, sizeof(query), "UPDATE project_builds SET state='%s', time=NOW() WHERE projectId='%d'",
-            success ? "succeeded" : "failed", projectId);
-        db.Query(query);
 
         lua_close(L);
         L = NULL;
