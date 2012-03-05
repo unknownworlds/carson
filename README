@@ -30,3 +30,20 @@ os.capture(command)
 	This function is equivalent to the os.execute function, except that the
 	result is returned as a string instead of output to the standard output.
 
+Schedule Module
+-------------------
+
+schedule.daily(time)
+	Sets the exit code based on whether or not the specified time of the day
+	has passed since the last build.
+	Example:
+		require('modules/schedule')
+		schedule.daily("12:00 AM") -- run at 12:00 AM once per day
+
+schedule.periodic(minutes)
+	Sets the exit code so that the project will be run at the specified
+	interval.
+	Example:
+		require('modules/schedule')
+		schedule.periodic(10) -- run every 10 minutes
+	
