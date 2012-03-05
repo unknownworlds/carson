@@ -126,6 +126,7 @@ else if ($action = 'get_projects')
 					'id' => $project->id,
 					'name' => $project->name,
 					'state' => $state,
+					'status' => $project->state,
 					'command' => $project->command,
 					'trigger' => $project->trigger
 				);

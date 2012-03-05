@@ -31,11 +31,11 @@ body {
 }
 
 #projects .ui-selecting {
-	background: #FECA40;
+	background: #FFE069;
 }
 
 #projects .ui-selected  {
-	background: #FECA40;
+	background: #FFE069;
 }
 
 #pane_right {
@@ -123,4 +123,24 @@ input.text {
 
 #install_form input {
 	width: 300px;
+}
+
+.project_status {
+	float: left;
+	margin-left: 5px;
+	width:	16px;
+	height: 16px;
+	display: block;
+}
+
+.project_status_failed  {
+	background-image: url("images/status_failure.png");
+}
+
+.project_status_succeeded  {
+	background-image: url("images/status_success.png");
+}
+
+.project_status_building  {
+	background-image: url("images/status_running.gif");
 }

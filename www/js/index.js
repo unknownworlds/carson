@@ -110,6 +110,8 @@ function createProjectElement(project)
             text: false
 		});			
 	deleteButton.click(projectDeleteButtonClick);
+	
+	projectElement.find(".project_status").addClass("project_status_" + project.status );
 
 	// return the DOM object instead of the selector.
 	return projectElement.get(0);
