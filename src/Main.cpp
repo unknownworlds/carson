@@ -298,41 +298,93 @@ void BuildProject(Database& db, int projectId)
 
 }
 
+void BuildRequestedProjects(Database& db)
+{
+
+    db.Query("SELECT projectId, state FROM project_builds");
+
+    if (db.GetNumRows() > 0)
+    {
+
+        int colProjectId = db.GetColumn("projectId");
+        int colState     = db.GetColumn("state");
+
+        if (colProjectId == -1 || colState == -1)
+        {
+            fprintf(stderr, "Bad database format\n");
+            return;
+        }
+
+        for (int i = 0; i < db.GetNumRows(); ++i)
+        {
+            char** row = db.GetRow();
+            if (strcmp(row[colState], "pending") == 0)
+            {
+                int projectId = atoi(row[colProjectId]);
+                BuildProject(db, projectId);
+            }
+        }
+
+    }
+
+}
+
+void BuildTriggeredProjects(Database& db)
+{
+
+    int lastId = -1;
+
+    while (1)
+    {
+
+        char query[256];
+        snprintf(query, sizeof(query), "SELECT id, test FROM projects WHERE test!='' and id>'%d' LIMIT 1", lastId);
+        db.Query(query);
+
+        if (db.GetNumRows() == 0)
+        {
+            break;
+        }
+
+        int colId   = db.GetColumn("id");
+        int colTest = db.GetColumn("test");
+        int colName = db.GetColumn("name");
+
+        if (colId == -1 || colTest == -1)
+        {
+            fprintf(stderr, "Bad database format\n");
+            return;
+        }
+
+        char** row = db.GetRow();
+
+        int projectId = atoi(row[colId]);
+        char* command = strdup(row[colTest]);
+
+        int exitCode = RunScript(db, command, projectId);
+
+        free(command);
+        command = NULL;
+
+        if (exitCode == EXIT_SUCCESS)
+        {
+            BuildProject(db, projectId);
+        }
+
+        lastId = projectId;
+
+    }
+
+}
+
 void Run(Database& db)
 {
     const int sleepInverval = 1000 * 5;
     while (1)
     {
-
         Thread_Sleep(sleepInverval);
-        db.Query("SELECT projectId, state FROM project_builds");
-
-        // Check for a pending request.
-        if (db.GetNumRows() > 0)
-        {
-
-            int colProjectId = db.GetColumn("projectId");
-            int colState     = db.GetColumn("state");
-
-            if (colProjectId == -1 || colState == -1)
-            {
-                fprintf(stderr, "Bad database format\n");
-                continue;
-            }
-
-            for (int i = 0; i < db.GetNumRows(); ++i)
-            {
-                char** row = db.GetRow();
-                if (strcmp(row[colState], "pending") == 0)
-                {
-                    int projectId = atoi(row[colProjectId]);
-                    BuildProject(db, projectId);
-                    break;
-                }
-            }
-
-        }
-        
+        BuildRequestedProjects(db);
+        BuildTriggeredProjects(db);
     }
 }
 
