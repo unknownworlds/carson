@@ -71,7 +71,7 @@ extern "C"
 in the Lua registry. */
 static int _buildTag;
     
-void luai_writestring(lua_State* L, const char* string, size_t length)
+void luai_writestring(lua_State* L, const char* string, size_t /*length*/)
 {
     lua_pushlightuserdata(L, &_buildTag);
     lua_rawget(L, LUA_REGISTRYINDEX);
@@ -106,7 +106,7 @@ void Thread_Sleep(int msecs)
     Sleep(msecs);
 }
 
-void SetProjectStatus(Database& db, int projectId, int exitCode, const char* error)
+void SetProjectStatus(Database& db, int projectId, int exitCode)
 {
     char query[256];
     snprintf(query, sizeof(query), "UPDATE project_builds SET state='%s', time=NOW() WHERE projectId='%d'",
@@ -287,7 +287,7 @@ void BuildProject(Database& db, int projectId)
         db.Query(query);
 
         int exitCode = RunScript(db, command, projectId);
-        SetProjectStatus(db, projectId, exitCode, NULL);
+        SetProjectStatus(db, projectId, exitCode);
 
         printf("> Project %s\n", (exitCode == EXIT_SUCCESS) ? "succeeded" : "failed");
 
@@ -332,9 +332,10 @@ void BuildRequestedProjects(Database& db)
 void BuildTriggeredProjects(Database& db)
 {
 
+    bool done  = false;
     int lastId = -1;
 
-    while (1)
+    while (!done)
     {
 
         char query[256];
@@ -343,35 +344,38 @@ void BuildTriggeredProjects(Database& db)
 
         if (db.GetNumRows() == 0)
         {
-            break;
+            done = true;
         }
-
-        int colId   = db.GetColumn("id");
-        int colTest = db.GetColumn("test");
-        int colName = db.GetColumn("name");
-
-        if (colId == -1 || colTest == -1)
+        else
         {
-            fprintf(stderr, "Bad database format\n");
-            return;
+
+            int colId   = db.GetColumn("id");
+            int colTest = db.GetColumn("test");
+
+            if (colId == -1 || colTest == -1)
+            {
+                fprintf(stderr, "Bad database format\n");
+                return;
+            }
+
+            char** row = db.GetRow();
+
+            int projectId = atoi(row[colId]);
+            char* command = strdup(row[colTest]);
+
+            int exitCode = RunScript(db, command, projectId);
+
+            free(command);
+            command = NULL;
+
+            if (exitCode == EXIT_SUCCESS)
+            {
+                BuildProject(db, projectId);
+            }
+
+            lastId = projectId;
+
         }
-
-        char** row = db.GetRow();
-
-        int projectId = atoi(row[colId]);
-        char* command = strdup(row[colTest]);
-
-        int exitCode = RunScript(db, command, projectId);
-
-        free(command);
-        command = NULL;
-
-        if (exitCode == EXIT_SUCCESS)
-        {
-            BuildProject(db, projectId);
-        }
-
-        lastId = projectId;
 
     }
 
@@ -380,7 +384,8 @@ void BuildTriggeredProjects(Database& db)
 void Run(Database& db)
 {
     const int sleepInverval = 1000 * 5;
-    while (1)
+    bool done = false;
+    while (!done)
     {
         Thread_Sleep(sleepInverval);
         BuildRequestedProjects(db);
@@ -388,7 +393,7 @@ void Run(Database& db)
     }
 }
 
-int main(int argc, char* argv[])
+int main(int, char*[])
 {
 
     const char* configFileName = "carson.config";
