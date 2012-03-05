@@ -119,12 +119,45 @@ int LuaChdir(lua_State* L)
     return 1;
 }
 
+int LuaCapture(lua_State* L)
+{
+
+    const char* cmd = luaL_checkstring(L, 1);
+    FILE* pipe = lua_popen(L, cmd, "r");
+
+    if (pipe == NULL)
+    {
+        lua_pushnil(L);
+        return 1;
+    }
+
+    lua_pushstring(L, "");
+
+    char buffer[256];
+    while (fgets(buffer, sizeof(buffer), pipe))
+    {
+        lua_pushstring(L, buffer);
+        lua_concat(L, 2);
+    }
+ 
+    return 1;
+
+}
+
 /** Binds auxiliary functions/variables. */
 void BindLuaLibrary(lua_State* L)
 {
+
+    static const luaL_Reg lib[] =
+        {
+            {"chdir", LuaChdir},
+            {"capture", LuaCapture},
+            { NULL, NULL }
+        };
+    
     lua_getglobal(L, "os");
-    lua_pushcfunction(L, LuaChdir);
-    lua_setfield(L, -2, "chdir");
+    luaL_setfuncs(L, lib, 0);
+
 }
 
 /** Initiates building of the project with the specified id. */
