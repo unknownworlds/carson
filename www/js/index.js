@@ -50,7 +50,7 @@ function setSelectedProject(id)
 		{
 			results.html("");
 		}
-		results.load("carson_api.php", { action: 'get_results', id: id });
+		results.load("carson_api.php", { action: 'get_results', projectId: id });
 		$("#project_" + id).addClass("ui-selected").siblings().removeClass("ui-selected");
 		if (window.selectedProjectId != id)
 		{
