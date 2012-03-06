@@ -1,3 +1,12 @@
+//==============================================================================
+//
+// carson/Database.cpp
+//
+// Created by Max McGuire (max@unknownworlds.com)
+// Copyright (c) 2012, Unknown Worlds Entertainment, Inc.
+//
+//==============================================================================
+
 #include "Database.h"
 
 #ifdef WIN32

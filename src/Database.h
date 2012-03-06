@@ -1,3 +1,12 @@
+//==============================================================================
+//
+// carson/Database.h
+//
+// Created by Max McGuire (max@unknownworlds.com)
+// Copyright (c) 2012, Unknown Worlds Entertainment, Inc.
+//
+//==============================================================================
+
 #ifndef DATABASE_H
 #define DATABASE_H
 
