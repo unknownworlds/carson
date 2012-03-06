@@ -29,6 +29,12 @@ os.chdir(directory)
 os.capture(command)
 	This function is equivalent to the os.execute function, except that the
 	result is returned as a string instead of output to the standard output.
+	
+os.atexit(function)	
+	Registers a function to be called when the executing finishes. This
+	function will be passed a boolean which is the value that was passed
+	to os.exit, or in the case where there was an error excuting Lua code
+	will be false.
 
 Schedule Module
 -------------------

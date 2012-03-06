@@ -121,12 +121,13 @@ void AppendToLog(Build* build, const char* message)
 
 }
 
-extern "C"
-{
-
 /** This is used to just provide us with a unique address we can use as a key
 in the Lua registry. */
 static int _buildTag;
+static int _atexitTag;
+
+extern "C"
+{
     
 void luai_writestring(lua_State* L, const char* string, size_t /*length*/)
 {
@@ -232,6 +233,40 @@ int OsExit(lua_State* L)
     return lua_yield(L, 0);
 }
 
+/** Sets up a function that will be called on exit. */
+int OsAtExit(lua_State* L)
+{
+    luaL_checktype(L, 1, LUA_TFUNCTION);
+
+    lua_pushlightuserdata(L, &_atexitTag);
+    lua_rawget(L, LUA_REGISTRYINDEX);
+
+    lua_pushvalue(L, 1);
+    lua_pushvalue(L, 1);
+    lua_rawset(L, -3);
+    
+    lua_pop(L, 1);
+
+    return 0;
+}
+
+void OsCallAtExit(lua_State* L, int exitCode)
+{
+
+    lua_pushlightuserdata(L, &_atexitTag);
+    lua_rawget(L, LUA_REGISTRYINDEX);
+
+    int t = lua_gettop(L);
+
+    lua_pushnil(L);
+    while (lua_next(L, t) != 0)
+    {
+        lua_pushboolean(L, exitCode == EXIT_SUCCESS);
+        lua_pcall(L, 1, 0, 0);
+    }
+
+}
+
 /** Binds auxiliary functions/variables. */
 void BindLuaLibrary(lua_State* L)
 {
@@ -241,11 +276,17 @@ void BindLuaLibrary(lua_State* L)
             {"chdir",   OsChdir },
             {"capture", OsCapture },
             {"exit",    OsExit },
+            {"atexit",  OsAtExit },
             { NULL,     NULL }
         };
     
     lua_getglobal(L, "os");
     luaL_setfuncs(L, oslib, 0);
+
+    // Setup the table we'll use for atexit.
+    lua_pushlightuserdata(L, &_atexitTag);
+    lua_newtable(L);
+    lua_rawset(L, LUA_REGISTRYINDEX);
  
 }
 
@@ -324,6 +365,8 @@ int RunScript(Database& db, const char* command, int projectId, bool log)
         AppendToLog(&build, error);
         lua_pop(T, 1);
     }
+    
+    OsCallAtExit(L, exitCode);
 
     lua_close(L);
     L = NULL;
