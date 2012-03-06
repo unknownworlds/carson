@@ -17,4 +17,8 @@ function svn.lastcommit(path)
 
 end
 
+function svn.update(path)
+	os.execute("svn update " .. path)
+end
+
 return svn
