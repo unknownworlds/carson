@@ -213,7 +213,7 @@ int OsExit(lua_State* L)
         build->exitCode = luaL_optint(L, 1, EXIT_SUCCESS);
     }
     lua_pop(L, 1);
-    return 0;
+    return lua_yield(L, 0);
 }
 
 /** Binds auxiliary functions/variables. */
@@ -276,13 +276,18 @@ int RunScript(Database& db, const char* command, int projectId, bool log)
 
     int exitCode = EXIT_FAILURE;
 
-    if (luaL_loadstring(L, command) == 0)
+    // We use a new thread so that we can exit from it if os.exit is called.
+
+    lua_State* T = lua_newthread(L);
+
+    if (luaL_loadstring(T, command) == 0)
     {
-        if (lua_pcall(L, 0, LUA_MULTRET, 0) != LUA_OK)
+        int result = lua_resume(T, L, 0);
+        if (result != LUA_OK && result != LUA_YIELD)
         {
-            const char* error = lua_tostring(L, -1);
+            const char* error = lua_tostring(T, -1);
             AppendToLog(&build, error);
-            lua_pop(L, 1);
+            lua_pop(T, 1);
         }
         else
         {
@@ -291,9 +296,9 @@ int RunScript(Database& db, const char* command, int projectId, bool log)
     }
     else
     {
-        const char* error = lua_tostring(L, -1);
+        const char* error = lua_tostring(T, -1);
         AppendToLog(&build, error);
-        lua_pop(L, 1);
+        lua_pop(T, 1);
     }
 
     lua_close(L);
