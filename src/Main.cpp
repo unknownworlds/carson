@@ -167,7 +167,9 @@ int OsChdir(lua_State* L)
 int OsCapture(lua_State* L)
 {
 
-    const char* cmd = luaL_checkstring(L, 1);
+    const char* cmd    = luaL_checkstring(L, 1);
+    int         mirror = lua_toboolean(L, 2);
+
     FILE* pipe = lua_popen(L, cmd, "r");
 
     if (pipe == NULL)
@@ -181,6 +183,10 @@ int OsCapture(lua_State* L)
     char buffer[256];
     while (fgets(buffer, sizeof(buffer), pipe))
     {
+        if (mirror)
+        {
+            luai_writestring(L, buffer, 0);
+        }
         lua_pushstring(L, buffer);
         lua_concat(L, 2);
     }
