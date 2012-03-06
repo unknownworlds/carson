@@ -66,6 +66,13 @@ void FlushBuffer(Build* build)
 
 }
 
+void ClearLog(Build* build)
+{
+    char query[256];
+    snprintf(query, sizeof(query), "UPDATE project_builds SET log='' WHERE projectId='%d'", build->projectId);
+    build->db->Query(query);
+}
+
 /** Appends a string to the end of the log for a project. */
 void AppendToLog(Build* build, const char* message)
 {
@@ -285,6 +292,10 @@ int RunScript(Database& db, const char* command, int projectId, bool log)
         int result = lua_resume(T, L, 0);
         if (result != LUA_OK && result != LUA_YIELD)
         {
+            if (!log)
+            {
+                ClearLog(&build);
+            }
             const char* error = lua_tostring(T, -1);
             AppendToLog(&build, error);
             lua_pop(T, 1);
@@ -296,6 +307,10 @@ int RunScript(Database& db, const char* command, int projectId, bool log)
     }
     else
     {
+        if (!log)
+        {
+            ClearLog(&build);
+        }
         const char* error = lua_tostring(T, -1);
         AppendToLog(&build, error);
         lua_pop(T, 1);
