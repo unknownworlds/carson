@@ -139,7 +139,15 @@ void luai_writestring(lua_State* L, const char* string, size_t /*length*/)
     {
         AppendToLog(build, string);
     }
+
+    // Update the log variable.
+    lua_getglobal(L, "_LOG");
+    lua_pushstring(L, string);
+    lua_concat(L, 2);
+    lua_setglobal(L, "_LOG");
+
     lua_pop(L, 1);
+
 }
 
 void luai_writeline(lua_State* L)
@@ -198,7 +206,7 @@ int OsCapture(lua_State* L)
 
     lua_pushstring(L, "");
 
-    char buffer[256];
+    char buffer[512];
     while (fgets(buffer, sizeof(buffer), pipe))
     {
         if (mirror)
@@ -208,7 +216,8 @@ int OsCapture(lua_State* L)
         lua_pushstring(L, buffer);
         lua_concat(L, 2);
     }
- 
+
+    lua_pclose(L, pipe);
     return 1;
 
 }
@@ -336,6 +345,9 @@ int RunScript(Database& db, const char* projectName, const char* command, int pr
         lua_pushstring(L, projectName);
         lua_setglobal(L, "_PROJECT_NAME");
     }
+
+    lua_pushstring(L, "");
+    lua_setglobal(L, "_LOG");
 
     int exitCode = EXIT_FAILURE;
 
