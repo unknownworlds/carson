@@ -290,7 +290,7 @@ void BindLuaLibrary(lua_State* L)
  
 }
 
-int RunScript(Database& db, const char* command, int projectId, bool log)
+int RunScript(Database& db, const char* projectName, const char* command, int projectId, bool log)
 {
 
     // Save off the working directory, since the script may change it.
@@ -330,6 +330,12 @@ int RunScript(Database& db, const char* command, int projectId, bool log)
 
     lua_pushnumber(L, static_cast<lua_Number>(lastTimeRun));
     lua_setglobal(L, "_LAST_TIME_RUN");
+
+    if (projectName != NULL)
+    {
+        lua_pushstring(L, projectName);
+        lua_setglobal(L, "_PROJECT_NAME");
+    }
 
     int exitCode = EXIT_FAILURE;
 
@@ -402,7 +408,7 @@ void BuildProject(Database& db, int projectId)
 
         char** row = db.GetRow();
         
-        const char* name = row[colName];
+        char* name    = strdup(row[colName]);
         char* command = strdup(row[colCommand]);
 
         printf("> Project '%s' started\n", name);
@@ -411,13 +417,16 @@ void BuildProject(Database& db, int projectId)
         snprintf(query, sizeof(query), "UPDATE project_builds SET state='building', time=NOW(), log='' WHERE projectId='%d'", projectId);
         db.Query(query);
 
-        int exitCode = RunScript(db, command, projectId, true);
+        int exitCode = RunScript(db, name, command, projectId, true);
         SetProjectStatus(db, projectId, exitCode);
 
         printf("> Project %s\n", (exitCode == EXIT_SUCCESS) ? "succeeded" : "failed");
 
         free(command);
         command = NULL;
+
+        free(name);
+        name = NULL;
     
     }
 
@@ -464,7 +473,7 @@ void BuildTriggeredProjects(Database& db)
     {
 
         char query[256];
-        snprintf(query, sizeof(query), "SELECT id, test FROM projects WHERE test!='' and id>'%d' LIMIT 1", lastId);
+        snprintf(query, sizeof(query), "SELECT id, test, name FROM projects WHERE test!='' and id>'%d' LIMIT 1", lastId);
         db.Query(query);
 
         if (db.GetNumRows() == 0)
@@ -476,8 +485,9 @@ void BuildTriggeredProjects(Database& db)
 
             int colId   = db.GetColumn("id");
             int colTest = db.GetColumn("test");
+            int colName = db.GetColumn("name");
 
-            if (colId == -1 || colTest == -1)
+            if (colName == -1 || colId == -1 || colTest == -1)
             {
                 fprintf(stderr, "Bad database format\n");
                 return;
@@ -487,11 +497,15 @@ void BuildTriggeredProjects(Database& db)
 
             int projectId = atoi(row[colId]);
             char* command = strdup(row[colTest]);
+            char* name    = strdup(row[colName]);
 
-            int exitCode = RunScript(db, command, projectId, false);
+            int exitCode = RunScript(db, name, command, projectId, false);
 
             free(command);
             command = NULL;
+
+            free(name);
+            name = NULL;
 
             if (exitCode == EXIT_SUCCESS)
             {
