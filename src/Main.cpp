@@ -21,6 +21,7 @@ extern "C"
 #define getcwd      _getcwd
 #define chdir       _chdir
 #define strdup      _strdup
+#define putenv      _putenv
 #endif
 
 struct Build
@@ -219,7 +220,7 @@ int OsExit(lua_State* L)
 void BindLuaLibrary(lua_State* L)
 {
 
-    static const luaL_Reg lib[] =
+    static const luaL_Reg oslib[] =
         {
             {"chdir",   OsChdir },
             {"capture", OsCapture },
@@ -228,8 +229,8 @@ void BindLuaLibrary(lua_State* L)
         };
     
     lua_getglobal(L, "os");
-    luaL_setfuncs(L, lib, 0);
-
+    luaL_setfuncs(L, oslib, 0);
+ 
 }
 
 int RunScript(Database& db, const char* command, int projectId, bool log)
@@ -466,18 +467,26 @@ int main(int, char*[])
     char buffer[256];
     while (fgets(buffer, sizeof(buffer), file))
     {
-        char field[256];
-        char value[256];
-        if (sscanf(buffer, "%s = '%s", field, value) == 2)
-        {
-            char* quote = strchr(value, '\'');
-            if (quote == NULL) continue;
-            *quote = 0;
+        
+        char* field = strtok(buffer, "= ");
+        strtok(NULL, " '");
+        char* value = strtok(NULL,  "'\r\n");
 
+        if (field != NULL && value != NULL)
+        {
             if (strcmp(field, "DB_HOST") == 0) strcpy(dbHost, value);
             else if (strcmp(field, "DB_USERNAME") == 0) strcpy(dbUserName, value);
             else if (strcmp(field, "DB_PASSWORD") == 0) strcpy(dbPassword, value);
+            else
+            {
+                // Store the option as an environment variable which scripts can
+                // access.
+                char temp[256];
+                snprintf(temp, sizeof(temp), "%s=%s", field, value);
+                putenv(temp);
+            }
         }
+
     }
 
     fclose(file);
