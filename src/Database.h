@@ -20,6 +20,7 @@ class Database
 public:
 
     Database();
+    ~Database();
 
     bool Connect(const char* host, const char* userName, const char* password);
     void Close();

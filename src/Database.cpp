@@ -25,6 +25,11 @@ Database::Database()
     m_field   = NULL;
 }
 
+Database::~Database()
+{
+    Close();
+}
+
 bool Database::Connect(const char* host, const char* userName, const char* password)
 {
     m_db = mysql_init(NULL);
@@ -43,8 +48,11 @@ bool Database::Connect(const char* host, const char* userName, const char* passw
 void Database::Close()
 {
     FreeLastQuery();
-    mysql_close(m_db);
-    m_db = NULL;
+    if (m_db != NULL)
+    {
+        mysql_close(m_db);
+        m_db = NULL;
+    }
 }
 
 bool Database::Select(const char* database)
