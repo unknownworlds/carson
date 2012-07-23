@@ -485,7 +485,7 @@ void BuildTriggeredProjects(Database& db)
     {
 
         char query[256];
-        snprintf(query, sizeof(query), "SELECT id, test, name FROM projects WHERE test!='' and id>'%d' LIMIT 1", lastId);
+        snprintf(query, sizeof(query), "SELECT id, test, name FROM projects WHERE test!='' AND id>'%d' AND enabled='1' LIMIT 1", lastId);
         db.Query(query);
 
         if (db.GetNumRows() == 0)
