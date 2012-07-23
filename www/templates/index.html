@@ -1,6 +1,6 @@
 <html>
-<link type='text/css' href='css/carson.css' rel='Stylesheet' />
 <link type='text/css' href='css/ui-lightness/jquery-ui-1.8.18.custom.css' rel='Stylesheet' />
+<link type='text/css' href='css/carson.css' rel='Stylesheet' />
 <script type='text/javascript' src='js/jquery-1.7.1.min.js'></script>
 <script type='text/javascript' src='js/jquery-ui-1.8.18.custom.min.js'></script>
 <script type='text/javascript' src='js/index.js'></script>
@@ -61,6 +61,7 @@
 			<span class='project_status'></span>
 			<span class='project_state'>${state}</span>
 			<button class='project_run_button'>Run</button>
+			<input type='checkbox' class='project_enable_checkbox' id='enable_${id}'/><label for='enable_${id}' class='project_enable_button'>Enable</label>
 			<button class='project_delete_button'>Delete</button>
 			<button class='project_edit_button'>Edit</button>
 		</li>

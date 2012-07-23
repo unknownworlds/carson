@@ -76,6 +76,15 @@ else if ($action == 'run_project')
 		carson_buildProject($id);
 	}
 }
+else if ($action == 'enable_project')
+{
+	if (isset($_POST['projectId']) && isset($_POST['enabled']) )
+	{
+		$id		 = $_POST['projectId'];
+		$enabled = $_POST['enabled'] == "true";
+		carson_enableProject($id, $enabled);
+	}
+}
 else if ($action == 'get_results')
 {
 	if (isset($_POST['projectId']))
@@ -128,7 +137,8 @@ else if ($action = 'get_projects')
 					'state' => $state,
 					'status' => $project->state,
 					'command' => $project->command,
-					'trigger' => $project->trigger
+					'trigger' => $project->trigger,
+					'enabled' => $project->enabled,
 				);
 
 	}	

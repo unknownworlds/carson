@@ -80,10 +80,17 @@ body {
 	float: left;
 }
 
-.project_edit_button, .project_delete_button 
+.project_enable_button, .project_edit_button, .project_delete_button 
 {
 	float: right;
 	margin-left: 5px;
+	margin-top: 2px;
+	margin-bottom: 2px;
+}
+
+.project_enable_button.ui-state-active
+{
+	background: #7F0000;
 }
 
 #create_project {

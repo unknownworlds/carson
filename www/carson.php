@@ -33,7 +33,7 @@ function carson_install($dbHost, $dbUserName, $dbPassword)
 	db_exec("DROP DATABASE IF EXISTS " . DB_NAME);
 	db_exec("CREATE DATABASE " . DB_NAME);
 	db_select(DB_NAME);
-	db_exec("CREATE TABLE projects (id INT NOT NULL AUTO_INCREMENT, PRIMARY KEY(id), name TINYTEXT, test MEDIUMTEXT, command MEDIUMTEXT)");
+	db_exec("CREATE TABLE projects (id INT NOT NULL AUTO_INCREMENT, PRIMARY KEY(id), name TINYTEXT, test MEDIUMTEXT, command MEDIUMTEXT, enabled BOOLEAN)");
     db_exec("CREATE TABLE project_builds (id INT NOT NULL AUTO_INCREMENT, PRIMARY KEY(id), projectId INT, state TINYTEXT, time DATETIME, log LONGTEXT)");
 	
 }
@@ -80,7 +80,7 @@ function carson_addProject($project)
 	$name    = db_escape($project->name);
 	$command = db_escape($project->command);
 	$trigger = db_escape($project->trigger);
-	db_exec("INSERT INTO projects (name, command, test) VALUES ('$name', '$command', '$trigger')");
+	db_exec("INSERT INTO projects (name, command, test, enabled) VALUES ('$name', '$command', '$trigger', TRUE)");
 	$project->id = db_getLastInsertId();
 	db_exec("INSERT INTO project_builds (projectId, state, time, log) VALUES ('{$project->id}', 'new', NOW(), '')");
 }
@@ -113,6 +113,7 @@ function carson_getProjects()
 		$project->name    = $row['name'];
 		$project->command = $row['command'];
 		$project->trigger = $row['test'];
+		$project->enabled = $row['enabled'];
 		$projects[] = $project;
 	}
 	
@@ -138,6 +139,13 @@ function carson_buildProject($id)
 {
 	$id = db_escape($id);
 	db_exec("UPDATE project_builds SET state='pending', log='' WHERE projectId='$id' AND state!='building'");
+}
+
+function carson_enableProject($id, $enabled)
+{
+	$id = db_escape($id);
+	$enabled = $enabled ? "true" : "false";
+	db_exec("UPDATE projects SET enabled=$enabled WHERE id='$id'");
 }
 
 function carson_getProjectLog($id)

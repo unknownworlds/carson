@@ -84,6 +84,17 @@ function createProjectElement(project)
 		
 	// Setup the button handlers.
 	
+	var enableButton = projectElement.find(".project_enable_checkbox");
+	enableButton.button({
+         icons: {
+                primary: "ui-icon-power",
+            },
+            text: false
+		});			
+	enableButton.click(projectEnableButtonClick);
+	enableButton.prop('checked', project.enabled == '0');
+	enableButton.button( "refresh" );
+	
 	var runButton = projectElement.find(".project_run_button");
 	runButton.button({
          icons: {
@@ -252,6 +263,15 @@ function projectRunButtonClick(event)
 	jQuery.post("carson_api.php", { action: 'run_project', projectId: id }, projectActionCallback );
 	setSelectedProject(id);
 	return false;
+}
+
+function projectEnableButtonClick(event)
+{
+	var id = $(event.target).parents('li').find('input').val();
+	var enabled = event.target.checked ? 'false' : 'true';
+	jQuery.post("carson_api.php", { action: 'enable_project', projectId: id, enabled: enabled}, projectActionCallback );
+	setSelectedProject(id);
+	return true;
 }
 
 function projectEditButtonClick(event)
