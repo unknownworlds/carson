@@ -1,5 +1,5 @@
 -- On Windows this specifies the directory where the MySQL C Connector library is installed.
-local mysqldir = "C:/Program Files/MySQL/Connector C 6.0.2"
+local mysqldir = "C:/Program Files (x86)/MySQL/MySQL Connector C 6.0.2"
 
 if os.is("windows") and not os.isdir(mysqldir) then
 	print("Building Carson requires the MySQL C Connector library to be installed.")

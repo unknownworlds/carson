@@ -596,6 +596,11 @@ int main(int, char*[])
         fprintf(stderr, "Couldn't connect to database\n");
         exit(EXIT_FAILURE);
     }
+
+    // If any projects were running when we exited, update the DB to indicate they
+    // are no longer.
+    db.Query("UPDATE project_builds SET state='failed' WHERE state='building'");
+
     Run(db);
     return 0;
 }
