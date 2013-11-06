@@ -1,16 +1,16 @@
 var selectedProjectId = -1;
 var projects = { };
-	
+
 function validateForm()
 {
 
 	var name    = $( "#name" );
 	var command = $( "#command" );
 	var trigger = $( "#trigger" );
-	
+
 	var allFields = $( [] ).add( name ).add( command ).add( trigger );
-	var tips = $( ".validateTips" );	
-	
+	var tips = $( ".validateTips" );
+
 	function updateTips( t )
 	{
 		tips.text( t ).addClass( "ui-state-highlight" );
@@ -18,7 +18,7 @@ function validateForm()
 			tips.removeClass( "ui-state-highlight", 1500 );
 		}, 500 );
 	}
-	
+
 	function checkSet( o, n ) {
 		if ( o.val().length > 0) {
 			return true;
@@ -28,22 +28,22 @@ function validateForm()
 			updateTips( n + " must be specified" );
 			return false;
 		}
-	}	
-	
+	}
+
 	var valid = true;
 	allFields.removeClass( "ui-state-error" );
 	valid = valid && checkSet( name, "name" );
 	valid = valid && checkSet( command, "command" );
-	
+
 	return valid;
-	
-}	
-	
+
+}
+
 function setSelectedProject(id)
 {
-	
+
 	var results = $( "#results" );
-	
+
 	if (id != -1)
 	{
 		if (id != window.selectedProjectId)
@@ -62,7 +62,7 @@ function setSelectedProject(id)
 		results.hide();
 		$(".project").removeClass("ui-selected");
 	}
-	
+
 	window.selectedProjectId = id;
 
 }
@@ -75,58 +75,58 @@ function projectSelect(event)
 
 function createProjectElement(project)
 {
-	
+
 	var projectElement = $( templateRender("#project_template", project) );
 
 	projectElement.click(function(event) {
 			projectSelect(event);
 		});
-		
+
 	// Setup the button handlers.
-	
+
 	var enableButton = projectElement.find(".project_enable_checkbox");
 	enableButton.button({
          icons: {
                 primary: "ui-icon-power",
             },
             text: false
-		});			
+		});
 	enableButton.click(projectEnableButtonClick);
 	enableButton.prop('checked', project.enabled == '0');
 	enableButton.button( "refresh" );
-	
+
 	var runButton = projectElement.find(".project_run_button");
 	runButton.button({
          icons: {
                 primary: "ui-icon-play",
             },
             text: false
-		});			
+		});
 	runButton.click(projectRunButtonClick);
-	
+
 	var editButton = projectElement.find(".project_edit_button");
 	editButton.button({
          icons: {
                 primary: "ui-icon-gear",
             },
             text: false
-		});			
+		});
 	editButton.click(projectEditButtonClick);
-	
+
 	var deleteButton = projectElement.find(".project_delete_button");
 	deleteButton.button({
          icons: {
                 primary: "ui-icon-trash",
             },
             text: false
-		});			
+		});
 	deleteButton.click(projectDeleteButtonClick);
-	
+
 	projectElement.find(".project_status").addClass("project_status_" + project.status );
 
 	// return the DOM object instead of the selector.
 	return projectElement.get(0);
-	
+
 }
 
 /** Inserts the node into the parent after insert (or at the beginning
@@ -149,19 +149,19 @@ function updateProjectsCallback(data, textStatus, jqXHR)
 	var oldProjects =  window.projects;
 	var newProjects = data['project'];
 	var lastElement = null;
-	
+
 	var i = 0;
 	var j = 0;
-	
+
 	var projectsElement = $('#projects');
 	var insert = null;
-	
+
 	while (i < newProjects.length && j < oldProjects.length)
 	{
-	
+
 		var newProject = newProjects[i];
 		var oldProject = oldProjects[j];
-		
+
 		if (newProject.id < oldProject.id)
 		{
 			// A project was added.
@@ -184,7 +184,7 @@ function updateProjectsCallback(data, textStatus, jqXHR)
 		{
 			// Update the element.
 			var projectElement = $("#project_" + oldProject.id);
-			
+
 			if (newProject.name  != oldProject.name ||
 			    newProject.state != oldProject.state)
 			{
@@ -195,14 +195,14 @@ function updateProjectsCallback(data, textStatus, jqXHR)
 					setSelectedProject(oldProject.id);
 				}
 			}
-			
+
 			insert = projectElement.get(0);
 			++i;
 			++j;
 		}
-	
+
 	}
-	
+
 	while (i < newProjects.length)
 	{
 		var newProject = newProjects[i];
@@ -224,9 +224,9 @@ function updateProjectsCallback(data, textStatus, jqXHR)
 		}
 		++j;
 	}
-	
+
 	window.projects = newProjects;
-	
+
 }
 
 /** Asynchronously updates the pane that displays from the server. */
@@ -238,7 +238,13 @@ function updateProjects()
 function update()
 {
 	var results = $( "#results" );
-	results.load("carson_api.php", { action: 'get_results', projectId: window.selectedProjectId } );
+
+    var openedEvents = [];
+    $('#results pre:visible').each(function(){
+        openedEvents.push($('#results .element pre').index(this)+1);
+    })
+
+	results.load("carson_api.php", { action: 'get_results', projectId: window.selectedProjectId, openedEvents: openedEvents.join() } );
 }
 
 function showErrorMessage(message)
@@ -296,14 +302,14 @@ function projectEditButtonClick(event)
 		showErrorMessage("Project doesn't exist");
 		return;
 	}
-	
+
 	name.val( project.name );
 	command.val( project.command );
 	trigger.val( project.trigger );
-	
+
 	var allFields = $( [] ).add( name ).add( command ).add( trigger );
-	var tips = $( ".validateTips" );	
-	
+	var tips = $( ".validateTips" );
+
 	function updateTips( t )
 	{
 		tips.text( t ).addClass( "ui-state-highlight" );
@@ -311,7 +317,7 @@ function projectEditButtonClick(event)
 			tips.removeClass( "ui-state-highlight", 1500 );
 		}, 500 );
 	}
-	
+
 	function checkSet( o, n ) {
 		if ( o.val().length > 0) {
 			return true;
@@ -321,10 +327,10 @@ function projectEditButtonClick(event)
 			updateTips( n + " must be specified" );
 			return false;
 		}
-	}	
-	
+	}
+
 	var buttons =
-		{	
+		{
 			"Ok": function() {
 				if ( validateForm() )
 				{
@@ -337,19 +343,19 @@ function projectEditButtonClick(event)
 				$( this ).dialog( "close" );
 			}
 		};
-		
+
 	var dialog = $( "#dialog-form" );
-	
+
 	dialog.dialog( "option", "title", "Edit Project" );
 	dialog.dialog( "option", "buttons", buttons );
-	dialog.dialog( "open" );	
-	
+	dialog.dialog( "open" );
+
 	return false;
 }
 
 function projectDeleteButtonClick( event)
 {
-		
+
 	var id = $(event.target).parents('li').find('input').val();
 
 	$( "#dialog-confirm" ).dialog({
@@ -365,10 +371,10 @@ function projectDeleteButtonClick( event)
 					$( this ).dialog( "close" );
 				}
 			}
-		});		
-	
+		});
+
 	return false;
-	
+
 }
 
 function createProjectButtonClick()
@@ -377,9 +383,9 @@ function createProjectButtonClick()
 	var name    = $( "#name" );
 	var command = $( "#command" );
 	var trigger = $( "#trigger" );
-	
+
 	var buttons =
-		{	
+		{
 			"Create Project": function() {
 				if ( validateForm() ) {
 					var data = { action: 'create_project', name: name.val(), command: command.val(), trigger: trigger.val() };
@@ -391,22 +397,22 @@ function createProjectButtonClick()
 				$( this ).dialog( "close" );
 			}
 		};
-		
+
 	var dialog = $( "#dialog-form" );
-	dialog.dialog( "option", "title", "Create Project" );	
+	dialog.dialog( "option", "title", "Create Project" );
 	dialog.dialog( "option", "buttons", buttons );
-	dialog.dialog( "open" );		
+	dialog.dialog( "open" );
 
 }
 
 $(function() {
-	
+
 	var name    = $( "#name" );
 	var command = $( "#command" );
 	var trigger = $( "#trigger" );
-	
-	var allFields = $( [] ).add( name ).add( command ).add( trigger );	
-	
+
+	var allFields = $( [] ).add( name ).add( command ).add( trigger );
+
 	$( "#dialog-form" ).dialog({
 			autoOpen: false,
 			width:  500,
@@ -419,10 +425,26 @@ $(function() {
 
 	// Create the button to open the new project dialog.
 	$("#create_project").button().click( createProjectButtonClick );
-	
+
 	updateProjects();
 
 	window.setInterval(update, 1000);
 	window.setInterval(updateProjects, 5000);
-		
+
+    $('#logContainer .header').live('click', function(){
+        $(this).siblings('pre').toggle();
+
+        /*console.log($(this).siblings('.output'))
+        var outputContainer = $(this).siblings('.output:eq(0)');
+
+        if(outputContainer.hasClass('outputVisible')) {
+            outputContainer.removeClass('outputVisible').hide();
+            console.log(1)
+        }
+        else {
+            outputContainer.addClass('outputVisible').show();
+            console.log(2)
+        }*/
+    })
+
 });

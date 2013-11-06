@@ -165,3 +165,32 @@ input.text {
 #trigger {
 	height: 100px;
 }
+
+#logContainer pre {
+    display: none;
+}
+
+#logContainer .outputVisible {
+    display: block;
+}
+
+#logContainer .status {
+    display: none;
+}
+
+#logContainer .header {
+    padding: 10px;
+    cursor: pointer;
+}
+
+#logContainer .success .header {
+    background: green;
+}
+
+#logContainer .failed .header {
+    background: red;
+}
+
+#logContainer .working .header {
+    background: gray;
+}

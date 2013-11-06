@@ -90,7 +90,9 @@ else if ($action == 'get_results')
 	if (isset($_POST['projectId']))
 	{
 		$id = $_POST['projectId'];
-		echo carson_getProjectLog($id);
+
+        $openedEvents = (isset($_POST['openedEvents'])) ? explode(',', $_POST['openedEvents']) : false;
+		echo carson_getProjectLog($id, $openedEvents);
 	}
 }
 else if ($action = 'get_projects')

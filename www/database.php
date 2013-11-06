@@ -1,6 +1,7 @@
 <?php
 
 $db = NULL;
+//error_reporting(E_ALL ^ E_DEPRECATED);
 
 function db_connect($host, $user, $password)
 {
