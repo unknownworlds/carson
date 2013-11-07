@@ -150,7 +150,7 @@ function carson_getProjectLog($id, $openedEvents = false)
         $input = $rows[0]['log'];
 
         if (substr($input, -6) !== '</div>' && !empty($input)) {
-            $input .= '</pre><div class="status">Working</div></div></div>';
+            $input .= '</pre><div class="status">Working</div></div>';
         }
 
         $dom = new DOMDocument();
