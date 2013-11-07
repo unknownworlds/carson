@@ -189,7 +189,7 @@ function carson_getProjectLog($id, $openedEvents = false)
                 }
             }
 
-            return $dom->saveHTML();
+            return '<div id="logContainer">'.$dom->saveHTML().'</div>';
         } else {
             return 'Invalid output HTML';
         }
