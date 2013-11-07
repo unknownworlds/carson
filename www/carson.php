@@ -147,7 +147,7 @@ function carson_getProjectLog($id, $openedEvents = false)
     $id = db_escape($id);
     $rows = db_query("SELECT * FROM project_builds WHERE projectId='$id'");
     if (count($rows) > 0) {
-        $input = $rows[0]['log'];
+        $input = trim($rows[0]['log']);
 
         if (substr($input, -6) !== '</div>' && !empty($input)) {
             $input .= '</pre><div class="status">Working</div></div>';
