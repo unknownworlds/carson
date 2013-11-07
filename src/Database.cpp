@@ -9,11 +9,10 @@
 
 #include "Database.h"
 
+#include <mysql.h>
 #ifdef WIN32
 #include <windows.h>
 #endif
-
-#include <mysql.h>
 #include <stdio.h>
 #include <string.h>
 
