@@ -28,10 +28,10 @@ function msvc.msbuild(solution, config, msbuildLocation)
     local result = os.capture(command, true)
 
     -- Check the results of the build
-    local errors = string.match(result, "(%d+) Error(s)")
+    local errors = string.match(result, "(%d+) Error%(s%)")
 
     return {
-        errors = errors,
+        errors = tonumber(errors),
         result = result
     }
 
