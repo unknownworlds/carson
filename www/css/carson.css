@@ -184,13 +184,13 @@ input.text {
 }
 
 #logContainer .success .header {
-    background: green;
+    background: #66CC66;
 }
 
 #logContainer .failed .header, #logContainer .failure .header {
-    background: red;
+    background: #FF6666;
 }
 
 #logContainer .working .header {
-    background: gray;
+    background: #FFCC66;
 }
