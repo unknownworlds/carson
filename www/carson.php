@@ -164,7 +164,7 @@ function carson_getProjectLog($id, $openedEvents = false)
         if ($loadStatus) {
             $domXpath = new DOMXpath($dom);
 
-            $elements = $domXpath->query("*/div/div[@class='element']/div[@class='status']");
+            $elements = $domXpath->query("//div[@class='element']/div[@class='status']");
 
             if (!is_null($elements)) {
                 foreach ($elements as $element) {
