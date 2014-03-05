@@ -5,13 +5,12 @@ plastic = { }
 -- The path specifies the working copy.
 function plastic.lastcommit(path)
 
-    os.execute("cd " .. path)
-    local result = os.capture("cm describebranchhistory main")
-
+    local result = os.capture("cd /d " .. path .. " && cm describebranchhistory main")
+	
     local lastChange = { day = nil, month = nil, year = nil, hour = nil, min = nil, sec = nil }
-    for day, month, year, hour, min, sec, ampm in string.gmatch(plastic, "Date: (%S+)/(%S+)/(%S+) (%S+):(%S+):(%S+) (%S+)") do
+    for month, day, year, hour, min, sec, ampm in string.gmatch(result, "Date: (%S+)/(%S+)/(%S+) (%S+):(%S+):(%S+) (%S+)") do
 
-        lastChange.day = day
+		lastChange.day = day
         lastChange.month = month
         lastChange.year = year
         lastChange.hour = tostring(tonumber(hour) + ((ampm == "PM") and 12 or 0))
@@ -20,7 +19,7 @@ function plastic.lastcommit(path)
         
     end
 
-    return os.time(lastChange)
+	return os.time(lastChange)
 
 end
 
