@@ -14,7 +14,39 @@ void CreateChildProcess(void);
 void WriteToPipe(void); 
 void ReadFromPipe(void); 
 void ErrorExit(PTSTR); 
- 
+
+static bool ExecuteRemoteKernelFuntion(HANDLE process, const char* functionName, LPVOID param, DWORD& exitCode)
+{
+
+    HMODULE kernelModule = GetModuleHandle("Kernel32");
+    FARPROC function = GetProcAddress(kernelModule, functionName);
+
+    if (function == NULL)
+    {
+        return false;
+    }
+
+    DWORD threadId;
+    HANDLE thread = CreateRemoteThread(process, NULL, 0,
+        (LPTHREAD_START_ROUTINE)function, param, 0, &threadId);
+
+    if (thread != NULL)
+    {
+        
+        WaitForSingleObject(thread, INFINITE);
+        GetExitCodeThread(thread, &exitCode);
+        
+        CloseHandle(thread);
+        return true;
+
+    }
+    else
+    {
+        return false;
+    }
+
+}
+
 bool Process_Run(void* userData, const char* command, Process_Callback callback, int* result)
 {
 
@@ -60,25 +92,22 @@ bool Process_Run(void* userData, const char* command, Process_Callback callback,
     siStartInfo.dwFlags |= STARTF_USESTDHANDLES;
 
     char* commandDup = _strdup(command);
-
-    // Create the child process. 
-    bSuccess = CreateProcess(NULL, 
-      commandDup,       // command line 
-      NULL,          // process security attributes 
-      NULL,          // primary thread security attributes 
-      TRUE,          // handles are inherited 
-      0,             // creation flags 
-      NULL,          // use parent's environment 
-      NULL,          // use parent's current directory 
-      &siStartInfo,  // STARTUPINFO pointer 
-      &piProcInfo);  // receives PROCESS_INFORMATION 
+    bSuccess = CreateProcess(NULL, commandDup, NULL, NULL, TRUE, CREATE_SUSPENDED, NULL, NULL, &siStartInfo, &piProcInfo);
    
     // If an error occurs, exit the application. 
-    if ( ! bSuccess ) 
+    if (!bSuccess) 
     {
+        free(commandDup);
         return false;
     }
-  
+
+    // Disable Dr. Watson so that we don't get hung up if the process crashes.
+    DWORD errorMode;
+    ExecuteRemoteKernelFuntion(piProcInfo.hProcess, "SetErrorMode", (LPVOID)SEM_NOGPFAULTERRORBOX, errorMode);
+    ExecuteRemoteKernelFuntion(piProcInfo.hProcess, "SetErrorMode", (LPVOID)(errorMode | SEM_NOGPFAULTERRORBOX), errorMode);
+
+    ResumeThread(piProcInfo.hThread);
+
     CloseHandle(g_hChildStd_IN_Wr);
     CloseHandle(g_hChildStd_IN_Rd);
 
@@ -87,7 +116,7 @@ bool Process_Run(void* userData, const char* command, Process_Callback callback,
 
     DWORD exitCode;
 
-    for (;;) 
+    while (1)
     { 
         if (!GetExitCodeProcess(piProcInfo.hProcess, &exitCode))
         {
