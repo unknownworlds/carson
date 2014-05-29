@@ -93,6 +93,18 @@ bool Process_Run(void* userData, const char* command, Process_Callback callback,
 
     char* commandDup = _strdup(command);
     bSuccess = CreateProcess(NULL, commandDup, NULL, NULL, TRUE, CREATE_SUSPENDED, NULL, NULL, &siStartInfo, &piProcInfo);
+
+    if (!bSuccess)
+    {
+        // Try launching as a shell command.
+        char* comspec = getenv("COMSPEC");
+        if (comspec != NULL)
+        {
+            char commandLine[ MAX_PATH + 50 ];
+            sprintf( commandLine, "%s /c %s", comspec, command );
+            bSuccess = CreateProcess(NULL, commandLine, NULL, NULL, TRUE, CREATE_SUSPENDED, NULL, NULL, &siStartInfo, &piProcInfo);
+        }
+    }
    
     // If an error occurs, exit the application. 
     if (!bSuccess) 
@@ -114,7 +126,7 @@ bool Process_Run(void* userData, const char* command, Process_Callback callback,
     DWORD dwRead; 
     CHAR chBuf[BUFSIZE]; 
 
-    DWORD exitCode;
+    DWORD exitCode = STILL_ACTIVE;
 
     while (1)
     { 
@@ -139,7 +151,10 @@ bool Process_Run(void* userData, const char* command, Process_Callback callback,
             {
                 break; 
             }
-            callback(userData, chBuf, dwRead);
+            if (callback != NULL)
+            {
+                callback(userData, chBuf, dwRead);
+            }
         }
     } 
 

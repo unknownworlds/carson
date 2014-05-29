@@ -8,6 +8,7 @@
 //==============================================================================
 
 #include "Database.h"
+#include "Process.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -83,15 +84,13 @@ void ClearLog(Build* build)
 }
 
 /** Appends a string to the end of the log for a project. */
-void AppendToLog(Build* build, const char* message)
+void AppendToLog(Build* build, const char* message, size_t messageLength)
 {
 
     if (message == NULL)
     {
         return;
     }
-
-    size_t messageLength = strlen(message);
 
     while (messageLength > 0)
     {
@@ -121,6 +120,14 @@ void AppendToLog(Build* build, const char* message)
 
 }
 
+void AppendToLog(Build* build, const char* message)
+{
+    if (message != NULL)
+    {
+        AppendToLog(build, message, strlen(message));
+    }
+}
+
 /** This is used to just provide us with a unique address we can use as a key
 in the Lua registry. */
 static int _buildTag;
@@ -129,7 +136,7 @@ static int _atexitTag;
 extern "C"
 {
     
-void luai_writestring(lua_State* L, const char* string, size_t /*length*/)
+void luai_writestring(lua_State* L, const char* string, size_t length)
 {
     lua_pushlightuserdata(L, &_buildTag);
     lua_rawget(L, LUA_REGISTRYINDEX);
@@ -137,12 +144,12 @@ void luai_writestring(lua_State* L, const char* string, size_t /*length*/)
     assert(build != NULL);
     if (build->log)
     {
-        AppendToLog(build, string);
+        AppendToLog(build, string, length);
     }
 
     // Update the log variable.
     lua_getglobal(L, "_LOG");
-    lua_pushstring(L, string);
+    lua_pushlstring(L, string, length);
     lua_concat(L, 2);
     lua_setglobal(L, "_LOG");
 
@@ -190,36 +197,65 @@ int OsChdir(lua_State* L)
     return 1;
 }
 
+int OsExecute(lua_State* L)
+{
+    struct Locals
+    {
+        static void Callback(void* userData, const char* string, size_t length)
+        {
+            lua_State* L = static_cast<lua_State*>(userData);
+            luai_writestring(L, string, length);
+        }
+	};
+
+    const char* command = lua_tostring(L, 1);
+	if (command == NULL)
+	{
+		int stat = system(NULL);
+		lua_pushboolean(L, stat);
+		return 1;
+	}
+
+    int result = 0;
+	Process_Run(L, command, Locals::Callback, &result);
+
+	lua_pushboolean(L, result != 0);
+	lua_pushstring(L, "exit");
+    lua_pushinteger(L, result);
+    return 3;
+}
+
 int OsCapture(lua_State* L)
 {
-
-    const char* cmd    = luaL_checkstring(L, 1);
-    int         mirror = lua_toboolean(L, 2);
-
-    FILE* pipe = lua_popen(L, cmd, "r");
-
-    if (pipe == NULL)
+    struct Locals
     {
-        lua_pushnil(L);
-        return 1;
-    }
+        static void Callback(void* userData, const char* string, size_t length)
+        {
+            lua_State* L = static_cast<lua_State*>(userData);
+            lua_pushlstring(L, string, length);
+            lua_concat(L, 2);
+        }
+        static void CallbackWithMirror(void* userData, const char* string, size_t length)
+        {
+            lua_State* L = static_cast<lua_State*>(userData);
+            luai_writestring(L, string, length);
+            lua_pushlstring(L, string, length);
+            lua_concat(L, 2);
+        }
+    };
+
+    const char* command = luaL_checkstring(L, 1);
+    int         mirror  = lua_toboolean(L, 2);
 
     lua_pushstring(L, "");
 
-    char buffer[512];
-    while (fgets(buffer, sizeof(buffer), pipe))
+    int result = 0;
+    if (!Process_Run(L, command, mirror ? Locals::CallbackWithMirror : Locals::Callback, &result))
     {
-        if (mirror)
-        {
-            luai_writestring(L, buffer, 0);
-        }
-        lua_pushstring(L, buffer);
-        lua_concat(L, 2);
+        lua_pop(L, 1);
+        lua_pushnil(L);
     }
-
-    lua_pclose(L, pipe);
     return 1;
-
 }
 
 /** Replacement for os.exit which will just set the exit code and not kill
@@ -282,6 +318,7 @@ void BindLuaLibrary(lua_State* L)
 
     static const luaL_Reg oslib[] =
         {
+            {"execute", OsExecute },
             {"chdir",   OsChdir },
             {"capture", OsCapture },
             {"exit",    OsExit },
